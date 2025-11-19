@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Calendar } from 'lucide-react';
+import { Plus, Trash2, Calendar, Sparkles } from 'lucide-react';
 import { apiClient } from '../lib/api';
 
 interface Milestone {
@@ -24,6 +24,8 @@ interface RoadmapTabProps {
 export function RoadmapTab({ portfolioId, milestones, onUpdate }: RoadmapTabProps) {
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [newMilestone, setNewMilestone] = useState({ title: '', date: '', status: 'planned' });
+  const [showAIPriorities, setShowAIPriorities] = useState(false);
+  const [aiPriorities, setAIPriorities] = useState<any[]>([]);
 
   const handleAddMilestone = async () => {
     if (!newMilestone.title.trim() || !newMilestone.date) return;
@@ -47,6 +49,16 @@ export function RoadmapTab({ portfolioId, milestones, onUpdate }: RoadmapTabProp
       onUpdate();
     } catch (error) {
       console.error('Failed to delete milestone:', error);
+    }
+  };
+
+  const handleGetAIPriorities = async () => {
+    try {
+      const response = await apiClient.getMilestonePriorities(portfolioId);
+      setAIPriorities(response.milestones || []);
+      setShowAIPriorities(true);
+    } catch (error) {
+      console.error('Failed to get AI priorities:', error);
     }
   };
 
@@ -78,61 +90,67 @@ export function RoadmapTab({ portfolioId, milestones, onUpdate }: RoadmapTabProp
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Product Roadmap</CardTitle>
-            <Dialog open={showAddMilestone} onOpenChange={setShowAddMilestone}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Milestone
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Milestone</DialogTitle>
-                  <DialogDescription>
-                    Create a new milestone for your product roadmap
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="title">Milestone Title</Label>
-                    <Input
-                      id="title"
-                      value={newMilestone.title}
-                      onChange={(e) => setNewMilestone({ ...newMilestone, title: e.target.value })}
-                      placeholder="e.g., MVP Launch"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="date">Target Date</Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={newMilestone.date}
-                      onChange={(e) => setNewMilestone({ ...newMilestone, date: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="status">Status</Label>
-                    <select
-                      id="status"
-                      value={newMilestone.status}
-                      onChange={(e) => setNewMilestone({ ...newMilestone, status: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
-                    >
-                      <option value="planned">Planned</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setShowAddMilestone(false)}>
-                    Cancel
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleGetAIPriorities}>
+                <Sparkles className="w-4 h-4 mr-2" />
+                AI Priorities
+              </Button>
+              <Dialog open={showAddMilestone} onOpenChange={setShowAddMilestone}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Milestone
                   </Button>
-                  <Button onClick={handleAddMilestone}>Add Milestone</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Milestone</DialogTitle>
+                    <DialogDescription>
+                      Create a new milestone for your product roadmap
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="title">Milestone Title</Label>
+                      <Input
+                        id="title"
+                        value={newMilestone.title}
+                        onChange={(e) => setNewMilestone({ ...newMilestone, title: e.target.value })}
+                        placeholder="e.g., MVP Launch"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="date">Target Date</Label>
+                      <Input
+                        id="date"
+                        type="date"
+                        value={newMilestone.date}
+                        onChange={(e) => setNewMilestone({ ...newMilestone, date: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="status">Status</Label>
+                      <select
+                        id="status"
+                        value={newMilestone.status}
+                        onChange={(e) => setNewMilestone({ ...newMilestone, status: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-md"
+                      >
+                        <option value="planned">Planned</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowAddMilestone(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddMilestone}>Add Milestone</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -191,6 +209,62 @@ export function RoadmapTab({ portfolioId, milestones, onUpdate }: RoadmapTabProp
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showAIPriorities} onOpenChange={setShowAIPriorities}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>AI-Assisted Milestone Prioritization</DialogTitle>
+            <DialogDescription>
+              Milestones prioritized using RICE scoring (Reach × Impact × Confidence / Effort)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {aiPriorities.map((milestone, index) => (
+              <Card key={milestone.id}>
+                <CardContent className="pt-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-bold text-lg">#{index + 1}</span>
+                        <h4 className="font-semibold">{milestone.title}</h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-gray-600">RICE Score:</span>
+                          <span className="ml-2 font-semibold">{milestone.rice_score}</span>
+                        </div>
+                        {milestone.rice_components && (
+                          <>
+                            <div>
+                              <span className="text-gray-600">Reach:</span>
+                              <span className="ml-2">{milestone.rice_components.reach}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Impact:</span>
+                              <span className="ml-2">{milestone.rice_components.impact}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Confidence:</span>
+                              <span className="ml-2">{milestone.rice_components.confidence}%</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Effort:</span>
+                              <span className="ml-2">{milestone.rice_components.effort} months</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowAIPriorities(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

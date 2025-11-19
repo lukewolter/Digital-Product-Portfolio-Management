@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, DollarSign } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Plus, Trash2, DollarSign, Sparkles } from 'lucide-react';
 import { apiClient } from '../lib/api';
 
 interface FundingSource {
@@ -29,6 +30,8 @@ interface InvestmentTabProps {
 export function InvestmentTab({ portfolioId, investment, funding, onUpdate }: InvestmentTabProps) {
   const [newFunding, setNewFunding] = useState({ source: '', amount: 0 });
   const [localInvestment, setLocalInvestment] = useState(investment);
+  const [showROIScenarios, setShowROIScenarios] = useState(false);
+  const [roiScenarios, setROIScenarios] = useState<any[]>([]);
 
   const handleUpdateInvestment = async (field: string, value: number) => {
     const updated = { ...localInvestment, [field]: value };
@@ -72,6 +75,16 @@ export function InvestmentTab({ portfolioId, investment, funding, onUpdate }: In
     }
   };
 
+  const handleGetROIScenarios = async () => {
+    try {
+      const response = await apiClient.getROIScenarios(portfolioId);
+      setROIScenarios(response.scenarios || []);
+      setShowROIScenarios(true);
+    } catch (error) {
+      console.error('Failed to get ROI scenarios:', error);
+    }
+  };
+
   const totalFunding = funding.reduce((sum, f) => sum + f.amount, 0);
 
   return (
@@ -79,7 +92,13 @@ export function InvestmentTab({ portfolioId, investment, funding, onUpdate }: In
       {/* Financial Calculators */}
       <Card>
         <CardHeader>
-          <CardTitle>Financial Overview</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Financial Overview</CardTitle>
+            <Button variant="outline" onClick={handleGetROIScenarios}>
+              <Sparkles className="w-4 h-4 mr-2" />
+              AI ROI Scenarios
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -217,6 +236,54 @@ export function InvestmentTab({ portfolioId, investment, funding, onUpdate }: In
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showROIScenarios} onOpenChange={setShowROIScenarios}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>AI-Generated ROI Scenarios</DialogTitle>
+            <DialogDescription>
+              Different revenue scenarios based on your budget and projected revenue
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {roiScenarios.map((scenario, index) => (
+              <Card key={index}>
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-lg">{scenario.name}</h4>
+                    <span className="text-sm text-gray-600">
+                      {scenario.multiplier}x multiplier
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <div className="text-gray-600">Revenue</div>
+                      <div className="text-lg font-semibold text-blue-600">
+                        ${scenario.revenue.toLocaleString()}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-gray-600">ROI</div>
+                      <div className={`text-lg font-semibold ${scenario.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {scenario.roi.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-gray-600">NPV</div>
+                      <div className={`text-lg font-semibold ${scenario.npv >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ${scenario.npv.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowROIScenarios(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

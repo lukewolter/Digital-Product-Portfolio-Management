@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, List
 from datetime import datetime
+import json
 
 from app.models import (
     Portfolio, User, CreatePortfolioRequest, UpdateBusinessCaseRequest,
@@ -9,6 +10,9 @@ from app.models import (
     UpdateInvestmentRequest, CreateFeedbackRequest, Feedback
 )
 from app.database import db
+from app.ai_assistant import (
+    prioritize_milestones, generate_roi_scenarios, analyze_feedback_sentiment
+)
 
 app = FastAPI(title="Portfolio Management API v2.0")
 
@@ -427,3 +431,347 @@ async def calculate_health_score(
     db.update_portfolio(portfolio_id, portfolio)
     
     return {"portfolio_id": portfolio_id, "health_score": score}
+
+
+@app.get("/api/ai/prioritize-milestones/{portfolio_id}")
+async def get_milestone_priorities(
+    portfolio_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Get AI-assisted milestone prioritization using RICE scoring"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    milestones_data = [
+        {
+            "id": m.id,
+            "title": m.title,
+            "date": m.date,
+            "description": m.description,
+            "dependencies": m.dependencies
+        }
+        for m in portfolio.roadmap.milestones
+    ]
+    
+    prioritized = prioritize_milestones(milestones_data)
+    
+    return {
+        "portfolio_id": portfolio_id,
+        "milestones": prioritized
+    }
+
+
+@app.get("/api/ai/roi-scenarios/{portfolio_id}")
+async def get_roi_scenarios(
+    portfolio_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Generate ROI scenarios with different multipliers"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    scenarios = generate_roi_scenarios(
+        portfolio.investment.budget,
+        portfolio.investment.revenue
+    )
+    
+    return {
+        "portfolio_id": portfolio_id,
+        "scenarios": scenarios
+    }
+
+
+@app.post("/api/portfolios/{portfolio_id}/feedback")
+async def add_feedback(
+    portfolio_id: str,
+    request: CreateFeedbackRequest,
+    current_user: User = Depends(get_current_user)
+) -> Portfolio:
+    """Add customer feedback with sentiment analysis"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    sentiment = analyze_feedback_sentiment(request.text)
+    
+    feedback = Feedback(
+        source=request.source,
+        text=request.text,
+        sentiment=sentiment['score'],
+        sentiment_label=sentiment['label'],
+        linked_section=request.linked_section
+    )
+    
+    portfolio.market_research.feedback.append(feedback)
+    updated_portfolio = db.update_portfolio(portfolio_id, portfolio)
+    
+    return updated_portfolio
+
+
+@app.delete("/api/portfolios/{portfolio_id}/feedback/{feedback_id}")
+async def delete_feedback(
+    portfolio_id: str,
+    feedback_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Portfolio:
+    """Delete feedback"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    portfolio.market_research.feedback = [
+        f for f in portfolio.market_research.feedback if f.id != feedback_id
+    ]
+    updated_portfolio = db.update_portfolio(portfolio_id, portfolio)
+    
+    return updated_portfolio
+
+
+@app.get("/api/portfolios/{portfolio_id}/versions")
+async def get_portfolio_versions(
+    portfolio_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Get version history for a portfolio"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return {
+        "portfolio_id": portfolio_id,
+        "versions": portfolio.versions
+    }
+
+
+@app.post("/api/portfolios/{portfolio_id}/versions/save")
+async def save_portfolio_version(
+    portfolio_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Save current state as a new version"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    from app.models import Version
+    version = Version(
+        timestamp=datetime.now(),
+        data=json.loads(portfolio.model_dump_json())
+    )
+    
+    portfolio.versions.append(version)
+    db.update_portfolio(portfolio_id, portfolio)
+    
+    return {
+        "portfolio_id": portfolio_id,
+        "version_id": version.id,
+        "message": "Version saved successfully"
+    }
+
+
+@app.post("/api/portfolios/{portfolio_id}/versions/{version_id}/restore")
+async def restore_portfolio_version(
+    portfolio_id: str,
+    version_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Portfolio:
+    """Restore portfolio to a previous version"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only owner can restore versions")
+    
+    version = next((v for v in portfolio.versions if v.id == version_id), None)
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+    
+    restored_data = version.data
+    portfolio.business_case = Portfolio(**restored_data).business_case
+    portfolio.market_research = Portfolio(**restored_data).market_research
+    portfolio.roadmap = Portfolio(**restored_data).roadmap
+    portfolio.investment = Portfolio(**restored_data).investment
+    portfolio.lifecycle = Portfolio(**restored_data).lifecycle
+    
+    updated_portfolio = db.update_portfolio(portfolio_id, portfolio)
+    
+    return updated_portfolio
+
+
+@app.get("/api/analytics/overview")
+async def get_portfolio_overview(
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Get aggregated analytics across all portfolios"""
+    portfolios = db.get_portfolios_by_user(current_user.id)
+    
+    if not portfolios:
+        return {
+            "total_portfolios": 0,
+            "average_health_score": 0,
+            "total_milestones": 0,
+            "total_kpis": 0,
+            "stage_distribution": {},
+            "total_budget": 0,
+            "total_revenue": 0,
+            "average_roi": 0
+        }
+    
+    total_health = sum(p.health_score for p in portfolios)
+    total_milestones = sum(len(p.roadmap.milestones) for p in portfolios)
+    total_kpis = sum(len(p.lifecycle.kpis) for p in portfolios)
+    total_budget = sum(p.investment.budget for p in portfolios)
+    total_revenue = sum(p.investment.revenue for p in portfolios)
+    
+    stage_distribution = {}
+    for p in portfolios:
+        stage = p.lifecycle.current_stage
+        stage_distribution[stage] = stage_distribution.get(stage, 0) + 1
+    
+    roi_values = [p.investment.roi for p in portfolios if p.investment.budget > 0]
+    average_roi = sum(roi_values) / len(roi_values) if roi_values else 0
+    
+    return {
+        "total_portfolios": len(portfolios),
+        "average_health_score": round(total_health / len(portfolios), 2),
+        "total_milestones": total_milestones,
+        "total_kpis": total_kpis,
+        "stage_distribution": stage_distribution,
+        "total_budget": total_budget,
+        "total_revenue": total_revenue,
+        "average_roi": round(average_roi, 2),
+        "portfolios": [
+            {
+                "id": p.id,
+                "name": p.name,
+                "health_score": p.health_score,
+                "stage": p.lifecycle.current_stage,
+                "milestones": len(p.roadmap.milestones),
+                "roi": p.investment.roi
+            }
+            for p in portfolios
+        ]
+    }
+
+
+@app.get("/api/portfolios/{portfolio_id}/export/csv")
+async def export_portfolio_csv(
+    portfolio_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Export portfolio data as CSV format"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    csv_data = {
+        "portfolio": {
+            "name": portfolio.name,
+            "description": portfolio.description,
+            "health_score": portfolio.health_score
+        },
+        "milestones": [
+            {
+                "title": m.title,
+                "date": m.date,
+                "description": m.description
+            }
+            for m in portfolio.roadmap.milestones
+        ],
+        "kpis": [
+            {
+                "metric": k.metric,
+                "current_value": k.current_value,
+                "target_value": k.target_value
+            }
+            for k in portfolio.lifecycle.kpis
+        ],
+        "competitors": [
+            {
+                "name": c.name,
+                "strengths": c.strengths,
+                "weaknesses": c.weaknesses
+            }
+            for c in portfolio.market_research.competitors
+        ]
+    }
+    
+    return csv_data
+
+
+@app.get("/api/portfolios/{portfolio_id}/export/json")
+async def export_portfolio_json(
+    portfolio_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Portfolio:
+    """Export complete portfolio data as JSON"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return portfolio
+
+
+@app.get("/api/notifications")
+async def get_notifications(
+    current_user: User = Depends(get_current_user)
+) -> List[dict]:
+    """Get all notifications for current user"""
+    notifications = db.get_notifications_by_user(current_user.id)
+    return [
+        {
+            "id": n.id,
+            "portfolio_id": n.portfolio_id,
+            "message": n.message,
+            "due_date": n.due_date,
+            "read": n.read,
+            "created_at": n.created_at
+        }
+        for n in notifications
+    ]
+
+
+@app.put("/api/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Mark a notification as read"""
+    notification = db.get_notification(notification_id)
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    
+    if notification.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    notification.read = True
+    db.update_notification(notification_id, notification)
+    
+    return {"message": "Notification marked as read"}

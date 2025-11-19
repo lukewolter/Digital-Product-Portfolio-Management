@@ -13,6 +13,7 @@ import { MarketResearchTab } from './components/MarketResearchTab';
 import { RoadmapTab } from './components/RoadmapTab';
 import { InvestmentTab } from './components/InvestmentTab';
 import { LifecycleTab } from './components/LifecycleTab';
+import PortfolioOverviewTab from './components/PortfolioOverviewTab';
 
 interface Portfolio {
   id: string;
@@ -247,14 +248,19 @@ function App() {
                 </CardContent>
               </Card>
 
-              <Tabs defaultValue="business-case" className="w-full">
-                <TabsList className="grid w-full grid-cols-5">
+              <Tabs defaultValue="overview" className="w-full">
+                <TabsList className="grid w-full grid-cols-6">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="business-case">Business Case</TabsTrigger>
                   <TabsTrigger value="market-research">Market Research</TabsTrigger>
                   <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
                   <TabsTrigger value="investment">Investment</TabsTrigger>
                   <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="overview">
+                  <PortfolioOverviewTab />
+                </TabsContent>
 
                 <TabsContent value="business-case">
                   <Card>
@@ -344,6 +350,7 @@ function App() {
                     portfolioId={currentPortfolio.id}
                     competitors={currentPortfolio.market_research.competitors}
                     personas={currentPortfolio.market_research.personas}
+                    feedback={currentPortfolio.market_research.feedback}
                     onUpdate={loadPortfolios}
                   />
                 </TabsContent>

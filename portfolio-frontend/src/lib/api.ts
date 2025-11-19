@@ -146,6 +146,65 @@ class ApiClient {
   async getHealthScore(portfolioId: string) {
     return this.request(`/api/analytics/health-score/${portfolioId}`);
   }
+
+  async getMilestonePriorities(portfolioId: string) {
+    return this.request(`/api/ai/prioritize-milestones/${portfolioId}`);
+  }
+
+  async getROIScenarios(portfolioId: string) {
+    return this.request(`/api/ai/roi-scenarios/${portfolioId}`);
+  }
+
+  async addFeedback(portfolioId: string, feedback: any) {
+    return this.request(`/api/portfolios/${portfolioId}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify(feedback),
+    });
+  }
+
+  async deleteFeedback(portfolioId: string, feedbackId: string) {
+    return this.request(`/api/portfolios/${portfolioId}/feedback/${feedbackId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getPortfolioVersions(portfolioId: string) {
+    return this.request(`/api/portfolios/${portfolioId}/versions`);
+  }
+
+  async savePortfolioVersion(portfolioId: string) {
+    return this.request(`/api/portfolios/${portfolioId}/versions/save`, {
+      method: 'POST',
+    });
+  }
+
+  async restorePortfolioVersion(portfolioId: string, versionId: string) {
+    return this.request(`/api/portfolios/${portfolioId}/versions/${versionId}/restore`, {
+      method: 'POST',
+    });
+  }
+
+  async getPortfolioOverview() {
+    return this.request('/api/analytics/overview');
+  }
+
+  async exportPortfolioCSV(portfolioId: string) {
+    return this.request(`/api/portfolios/${portfolioId}/export/csv`);
+  }
+
+  async exportPortfolioJSON(portfolioId: string) {
+    return this.request(`/api/portfolios/${portfolioId}/export/json`);
+  }
+
+  async getNotifications() {
+    return this.request('/api/notifications');
+  }
+
+  async markNotificationRead(notificationId: string) {
+    return this.request(`/api/notifications/${notificationId}/read`, {
+      method: 'PUT',
+    });
+  }
 }
 
 export const apiClient = new ApiClient();
