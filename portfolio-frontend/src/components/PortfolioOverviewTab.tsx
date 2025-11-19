@@ -62,7 +62,7 @@ export default function PortfolioOverviewTab() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Portfolio Overview</h2>
+        <h2 className="text-2xl font-bold">Product Overview</h2>
         <Button onClick={loadOverview} variant="outline" size="sm">
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
@@ -72,7 +72,7 @@ export default function PortfolioOverviewTab() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total Portfolios</CardDescription>
+            <CardDescription>Total Products</CardDescription>
             <CardTitle className="text-3xl">{overview.total_portfolios}</CardTitle>
           </CardHeader>
         </Card>
@@ -137,7 +137,7 @@ export default function PortfolioOverviewTab() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Portfolio Details</CardTitle>
+          <CardTitle>Product Details</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">

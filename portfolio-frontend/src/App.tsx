@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Save, Download, Moon, Sun } from 'lucide-react';
+import { Plus, Save, Download, Moon, Sun, Trash2 } from 'lucide-react';
 import { apiClient } from './lib/api';
 import { MarketResearchTab } from './components/MarketResearchTab';
 import { RoadmapTab } from './components/RoadmapTab';
@@ -38,6 +38,7 @@ function App() {
   const [showAddPortfolio, setShowAddPortfolio] = useState(false);
   const [newPortfolioName, setNewPortfolioName] = useState('');
   const [newPortfolioDesc, setNewPortfolioDesc] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     loadPortfolios();
@@ -90,6 +91,20 @@ function App() {
     }
   };
 
+  const handleDeletePortfolio = async () => {
+    if (!currentPortfolio) return;
+    
+    try {
+      await apiClient.deletePortfolio(currentPortfolio.id);
+      const updatedPortfolios = portfolios.filter(p => p.id !== currentPortfolio.id);
+      setPortfolios(updatedPortfolios);
+      setCurrentPortfolio(updatedPortfolios.length > 0 ? updatedPortfolios[0] : null);
+      setShowDeleteConfirm(false);
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+    }
+  };
+
   const handleExportSummary = () => {
     if (!currentPortfolio) return;
     
@@ -123,7 +138,7 @@ function App() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Portfolio Management v2.0
+                Product Management v2.0
               </h1>
               
               <div className="flex items-center gap-4">
@@ -136,7 +151,7 @@ function App() {
                     }}
                   >
                     <SelectTrigger className="w-64">
-                      <SelectValue placeholder="Select portfolio" />
+                      <SelectValue placeholder="Select product" />
                     </SelectTrigger>
                     <SelectContent>
                       {portfolios.map(p => (
@@ -152,19 +167,19 @@ function App() {
                   <DialogTrigger asChild>
                     <Button>
                       <Plus className="w-4 h-4 mr-2" />
-                      Add Portfolio
+                      Add Product
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Create New Portfolio</DialogTitle>
+                      <DialogTitle>Create New Product</DialogTitle>
                       <DialogDescription>
-                        Add a new product portfolio to manage
+                        Add a new product to manage
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="name">Portfolio Name</Label>
+                        <Label htmlFor="name">Product Name</Label>
                         <Input
                           id="name"
                           value={newPortfolioName}
@@ -207,15 +222,15 @@ function App() {
           {portfolios.length === 0 ? (
             <Card>
               <CardHeader>
-                <CardTitle>Welcome to Portfolio Management v2.0</CardTitle>
+                <CardTitle>Welcome to Product Management v2.0</CardTitle>
                 <CardDescription>
-                  Get started by creating your first portfolio
+                  Get started by creating your first product
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Button onClick={() => setShowAddPortfolio(true)}>
                   <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Portfolio
+                  Create Your First Product
                 </Button>
               </CardContent>
             </Card>
@@ -223,8 +238,21 @@ function App() {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>{currentPortfolio.name}</CardTitle>
-                  <CardDescription>{currentPortfolio.description}</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>{currentPortfolio.name}</CardTitle>
+                      <CardDescription>{currentPortfolio.description}</CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Product
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
@@ -247,6 +275,25 @@ function App() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete Product</DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to delete "{currentPortfolio.name}"? This action cannot be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+                      Cancel
+                    </Button>
+                    <Button variant="destructive" onClick={handleDeletePortfolio}>
+                      Delete
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               <Tabs defaultValue="overview" className="w-full">
                 <TabsList className="grid w-full grid-cols-6">
