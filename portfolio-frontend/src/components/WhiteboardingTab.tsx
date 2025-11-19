@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,7 +37,7 @@ export default function WhiteboardingTab({ portfolioId }: WhiteboardingTabProps)
   const loadWhiteboards = async () => {
     try {
       setLoading(true);
-      const data = await apiClient.getWhiteboards(portfolioId);
+      const data = await apiClient.getWhiteboards(portfolioId) as Whiteboard[];
       setWhiteboards(data);
     } catch (error) {
       console.error('Failed to load whiteboards:', error);
@@ -75,7 +75,7 @@ export default function WhiteboardingTab({ portfolioId }: WhiteboardingTabProps)
 
   const handleGetSuggestions = async (whiteboardId: string) => {
     try {
-      const data = await apiClient.getWhiteboardSuggestions(whiteboardId);
+      const data = await apiClient.getWhiteboardSuggestions(whiteboardId) as any;
       setSuggestions(data.suggestions);
     } catch (error) {
       console.error('Failed to get suggestions:', error);

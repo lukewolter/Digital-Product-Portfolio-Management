@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -47,7 +46,7 @@ export default function IntegrationsTab({ portfolioId }: IntegrationsTabProps) {
   const loadIntegrations = async () => {
     try {
       setLoading(true);
-      const data = await apiClient.getIntegrations(portfolioId);
+      const data = await apiClient.getIntegrations(portfolioId) as Integration[];
       setIntegrations(data);
     } catch (error) {
       console.error('Failed to load integrations:', error);
@@ -85,7 +84,7 @@ export default function IntegrationsTab({ portfolioId }: IntegrationsTabProps) {
   const handleSyncIntegration = async (integrationId: string) => {
     try {
       setSyncing(integrationId);
-      const result = await apiClient.syncIntegration(integrationId);
+      const result = await apiClient.syncIntegration(integrationId) as any;
       alert(`Sync completed! ${JSON.stringify(result.synced_data)}`);
       loadIntegrations();
     } catch (error) {
@@ -98,7 +97,7 @@ export default function IntegrationsTab({ portfolioId }: IntegrationsTabProps) {
 
   const handleViewLogs = async (integrationId: string) => {
     try {
-      const data = await apiClient.getIntegrationLogs(integrationId);
+      const data = await apiClient.getIntegrationLogs(integrationId) as any;
       setLogs(data.logs);
     } catch (error) {
       console.error('Failed to load logs:', error);

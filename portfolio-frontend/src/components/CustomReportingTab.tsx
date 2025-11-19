@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { FileText, TrendingUp, Download, Sparkles, Trash2 } from 'lucide-react';
 import apiClient from '@/lib/api';
 
@@ -48,7 +48,7 @@ export default function CustomReportingTab({ portfolioId }: CustomReportingTabPr
   const loadReports = async () => {
     try {
       setLoading(true);
-      const data = await apiClient.getReports(portfolioId);
+      const data = await apiClient.getReports(portfolioId) as Report[];
       setReports(data);
     } catch (error) {
       console.error('Failed to load reports:', error);
@@ -85,7 +85,7 @@ export default function CustomReportingTab({ portfolioId }: CustomReportingTabPr
 
   const handleGenerateInsights = async (reportId: string) => {
     try {
-      const data = await apiClient.getReportInsights(reportId);
+      const data = await apiClient.getReportInsights(reportId) as any;
       setInsights(data.insights);
     } catch (error) {
       console.error('Failed to generate insights:', error);

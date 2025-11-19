@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,7 +38,7 @@ export default function CapacityPlanningTab({ portfolioId }: CapacityPlanningTab
   const loadCapacityData = async () => {
     try {
       setLoading(true);
-      const overview = await apiClient.getCapacityOverview(portfolioId);
+      const overview = await apiClient.getCapacityOverview(portfolioId) as any;
       setResources(overview.resources || []);
       
       const workloadData = await apiClient.getWorkloadAnalysis(portfolioId);

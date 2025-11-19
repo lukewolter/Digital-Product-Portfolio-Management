@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -50,7 +50,7 @@ export default function IdeasPortalTab({ portfolioId }: IdeasPortalTabProps) {
   const loadIdeas = async () => {
     try {
       setLoading(true);
-      const data = await apiClient.getIdeas(portfolioId, filterCategory, filterStatus);
+      const data = await apiClient.getIdeas(portfolioId, filterCategory, filterStatus) as Idea[];
       setIdeas(data);
     } catch (error) {
       console.error('Failed to load ideas:', error);
@@ -95,7 +95,7 @@ export default function IdeasPortalTab({ portfolioId }: IdeasPortalTabProps) {
       });
       setNewComment('');
       loadIdeas();
-      const updated = await apiClient.getIdea(ideaId);
+      const updated = await apiClient.getIdea(ideaId) as Idea;
       setSelectedIdea(updated);
     } catch (error) {
       console.error('Failed to add comment:', error);
