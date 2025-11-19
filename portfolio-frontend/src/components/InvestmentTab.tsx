@@ -77,7 +77,7 @@ export function InvestmentTab({ portfolioId, investment, funding, onUpdate }: In
 
   const handleGetROIScenarios = async () => {
     try {
-      const response = await apiClient.getROIScenarios(portfolioId);
+      const response = await apiClient.getROIScenarios(portfolioId) as any;
       setROIScenarios(response.scenarios || []);
       setShowROIScenarios(true);
     } catch (error) {

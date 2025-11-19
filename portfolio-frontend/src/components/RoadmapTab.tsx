@@ -54,7 +54,7 @@ export function RoadmapTab({ portfolioId, milestones, onUpdate }: RoadmapTabProp
 
   const handleGetAIPriorities = async () => {
     try {
-      const response = await apiClient.getMilestonePriorities(portfolioId);
+      const response = await apiClient.getMilestonePriorities(portfolioId) as any;
       setAIPriorities(response.milestones || []);
       setShowAIPriorities(true);
     } catch (error) {
