@@ -14,6 +14,11 @@ import { RoadmapTab } from './components/RoadmapTab';
 import { InvestmentTab } from './components/InvestmentTab';
 import { LifecycleTab } from './components/LifecycleTab';
 import PortfolioOverviewTab from './components/PortfolioOverviewTab';
+import IdeasPortalTab from './components/IdeasPortalTab';
+import CapacityPlanningTab from './components/CapacityPlanningTab';
+import CustomReportingTab from './components/CustomReportingTab';
+import WhiteboardingTab from './components/WhiteboardingTab';
+import IntegrationsTab from './components/IntegrationsTab';
 
 interface Portfolio {
   id: string;
@@ -138,7 +143,7 @@ function App() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Product Management v2.0
+                Product Management v3.0
               </h1>
               
               <div className="flex items-center gap-4">
@@ -296,13 +301,18 @@ function App() {
               </Dialog>
 
               <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-6">
+                <TabsList className="grid w-full grid-cols-6 lg:grid-cols-11">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="business-case">Business Case</TabsTrigger>
                   <TabsTrigger value="market-research">Market Research</TabsTrigger>
                   <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
                   <TabsTrigger value="investment">Investment</TabsTrigger>
                   <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
+                  <TabsTrigger value="ideas">Ideas Portal</TabsTrigger>
+                  <TabsTrigger value="capacity">Capacity</TabsTrigger>
+                  <TabsTrigger value="reports">Reports</TabsTrigger>
+                  <TabsTrigger value="whiteboard">Whiteboard</TabsTrigger>
+                  <TabsTrigger value="integrations">Integrations</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview">
@@ -426,6 +436,26 @@ function App() {
                     kpis={currentPortfolio.lifecycle.kpis}
                     onUpdate={loadPortfolios}
                   />
+                </TabsContent>
+
+                <TabsContent value="ideas">
+                  <IdeasPortalTab portfolioId={currentPortfolio.id} />
+                </TabsContent>
+
+                <TabsContent value="capacity">
+                  <CapacityPlanningTab portfolioId={currentPortfolio.id} />
+                </TabsContent>
+
+                <TabsContent value="reports">
+                  <CustomReportingTab portfolioId={currentPortfolio.id} />
+                </TabsContent>
+
+                <TabsContent value="whiteboard">
+                  <WhiteboardingTab portfolioId={currentPortfolio.id} />
+                </TabsContent>
+
+                <TabsContent value="integrations">
+                  <IntegrationsTab portfolioId={currentPortfolio.id} />
                 </TabsContent>
               </Tabs>
             </div>

@@ -205,6 +205,216 @@ class ApiClient {
       method: 'PUT',
     });
   }
+
+  async createIdea(portfolioId: string, idea: any) {
+    return this.request(`/api/portfolios/${portfolioId}/ideas`, {
+      method: 'POST',
+      body: JSON.stringify(idea),
+    });
+  }
+
+  async getIdeas(portfolioId: string, category?: string, status?: string) {
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (status) params.append('status', status);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/api/portfolios/${portfolioId}/ideas${query}`);
+  }
+
+  async getIdea(ideaId: string) {
+    return this.request(`/api/ideas/${ideaId}`);
+  }
+
+  async updateIdea(ideaId: string, idea: any) {
+    return this.request(`/api/ideas/${ideaId}`, {
+      method: 'PUT',
+      body: JSON.stringify(idea),
+    });
+  }
+
+  async deleteIdea(ideaId: string) {
+    return this.request(`/api/ideas/${ideaId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async voteIdea(ideaId: string, voterEmail: string) {
+    return this.request(`/api/ideas/${ideaId}/vote?voter_email=${voterEmail}`, {
+      method: 'POST',
+    });
+  }
+
+  async unvoteIdea(ideaId: string, voterEmail: string) {
+    return this.request(`/api/ideas/${ideaId}/vote?voter_email=${voterEmail}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addIdeaComment(ideaId: string, comment: any) {
+    return this.request(`/api/ideas/${ideaId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(comment),
+    });
+  }
+
+  async deleteIdeaComment(ideaId: string, commentId: string) {
+    return this.request(`/api/ideas/${ideaId}/comments/${commentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async promoteIdea(ideaId: string) {
+    return this.request(`/api/ideas/${ideaId}/promote`, {
+      method: 'POST',
+    });
+  }
+
+  async getCapacityOverview(portfolioId: string) {
+    return this.request(`/api/portfolios/${portfolioId}/capacity`);
+  }
+
+  async createCapacityResource(portfolioId: string, resource: any) {
+    return this.request(`/api/portfolios/${portfolioId}/capacity/resources`, {
+      method: 'POST',
+      body: JSON.stringify(resource),
+    });
+  }
+
+  async updateCapacityResource(resourceId: string, resource: any) {
+    return this.request(`/api/capacity/resources/${resourceId}`, {
+      method: 'PUT',
+      body: JSON.stringify(resource),
+    });
+  }
+
+  async deleteCapacityResource(resourceId: string) {
+    return this.request(`/api/capacity/resources/${resourceId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async updateMilestoneEffort(milestoneId: string, effort: any) {
+    return this.request(`/api/milestones/${milestoneId}/effort`, {
+      method: 'PUT',
+      body: JSON.stringify(effort),
+    });
+  }
+
+  async getWorkloadAnalysis(portfolioId: string) {
+    return this.request(`/api/portfolios/${portfolioId}/capacity/workload`);
+  }
+
+  async createReport(portfolioId: string, report: any) {
+    return this.request(`/api/portfolios/${portfolioId}/reports`, {
+      method: 'POST',
+      body: JSON.stringify(report),
+    });
+  }
+
+  async getReports(portfolioId: string) {
+    return this.request(`/api/portfolios/${portfolioId}/reports`);
+  }
+
+  async getReport(reportId: string) {
+    return this.request(`/api/reports/${reportId}`);
+  }
+
+  async updateReport(reportId: string, report: any) {
+    return this.request(`/api/reports/${reportId}`, {
+      method: 'PUT',
+      body: JSON.stringify(report),
+    });
+  }
+
+  async deleteReport(reportId: string) {
+    return this.request(`/api/reports/${reportId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async executeReport(reportId: string) {
+    return this.request(`/api/reports/${reportId}/execute`, {
+      method: 'POST',
+    });
+  }
+
+  async getReportInsights(reportId: string) {
+    return this.request(`/api/reports/${reportId}/ai-insights`, {
+      method: 'POST',
+    });
+  }
+
+  async createWhiteboard(portfolioId: string, whiteboard: any) {
+    return this.request(`/api/portfolios/${portfolioId}/whiteboards`, {
+      method: 'POST',
+      body: JSON.stringify(whiteboard),
+    });
+  }
+
+  async getWhiteboards(portfolioId: string) {
+    return this.request(`/api/portfolios/${portfolioId}/whiteboards`);
+  }
+
+  async getWhiteboard(whiteboardId: string) {
+    return this.request(`/api/whiteboards/${whiteboardId}`);
+  }
+
+  async updateWhiteboard(whiteboardId: string, whiteboard: any) {
+    return this.request(`/api/whiteboards/${whiteboardId}`, {
+      method: 'PUT',
+      body: JSON.stringify(whiteboard),
+    });
+  }
+
+  async deleteWhiteboard(whiteboardId: string) {
+    return this.request(`/api/whiteboards/${whiteboardId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getWhiteboardSuggestions(whiteboardId: string) {
+    return this.request(`/api/whiteboards/${whiteboardId}/ai-suggestions`, {
+      method: 'POST',
+    });
+  }
+
+  async createIntegration(portfolioId: string, integration: any) {
+    return this.request(`/api/portfolios/${portfolioId}/integrations`, {
+      method: 'POST',
+      body: JSON.stringify(integration),
+    });
+  }
+
+  async getIntegrations(portfolioId: string) {
+    return this.request(`/api/portfolios/${portfolioId}/integrations`);
+  }
+
+  async getIntegration(integrationId: string) {
+    return this.request(`/api/integrations/${integrationId}`);
+  }
+
+  async updateIntegration(integrationId: string, integration: any) {
+    return this.request(`/api/integrations/${integrationId}`, {
+      method: 'PUT',
+      body: JSON.stringify(integration),
+    });
+  }
+
+  async deleteIntegration(integrationId: string) {
+    return this.request(`/api/integrations/${integrationId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async syncIntegration(integrationId: string) {
+    return this.request(`/api/integrations/${integrationId}/sync`, {
+      method: 'POST',
+    });
+  }
+
+  async getIntegrationLogs(integrationId: string) {
+    return this.request(`/api/integrations/${integrationId}/logs`);
+  }
 }
 
 export const apiClient = new ApiClient();

@@ -146,3 +146,100 @@ class CreateFeedbackRequest(BaseModel):
 class AIRequest(BaseModel):
     portfolio_id: str
     data: Dict[str, Any]
+
+class Comment(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    user: str
+    text: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Idea(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    portfolio_id: str
+    title: str
+    description: str
+    category: str = "Feature Request"  # "Feature Request", "Bug", "Enhancement"
+    status: str = "Submitted"  # "Submitted", "Under Review", "Planned", "Implemented", "Rejected"
+    votes: int = 0
+    voters: List[str] = Field(default_factory=list)  # Track who voted
+    comments: List[Comment] = Field(default_factory=list)
+    linked_to: Optional[Dict[str, str]] = None  # {"type": "milestone", "id": "..."}
+    created_by: str = "anonymous"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class AvailabilitySlot(BaseModel):
+    start: str  # ISO date string
+    end: str  # ISO date string
+    hours_per_day: float
+
+class CapacityResource(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    portfolio_id: str
+    user_id: str
+    name: str
+    role: str
+    availability: List[AvailabilitySlot] = Field(default_factory=list)
+
+class EffortEstimate(BaseModel):
+    milestone_id: str
+    effort_points: float
+    assigned_resources: List[str] = Field(default_factory=list)
+
+class CustomReport(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    portfolio_id: str
+    name: str
+    type: str = "chart"  # "pivot", "chart", "list"
+    config: Dict[str, Any] = Field(default_factory=dict)
+    owner_id: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Whiteboard(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    portfolio_id: str
+    name: str
+    linked_to: Optional[Dict[str, str]] = None
+    data: Dict[str, Any] = Field(default_factory=dict)  # Excalidraw JSON
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Integration(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    portfolio_id: str
+    type: str  # "salesforce", "figma", "jira", "slack"
+    config: Dict[str, Any] = Field(default_factory=dict)
+    enabled: bool = True
+    last_sync: Optional[datetime] = None
+
+class CreateIdeaRequest(BaseModel):
+    title: str
+    description: str
+    category: str = "Feature Request"
+    created_by: str = "anonymous"
+
+class CreateCommentRequest(BaseModel):
+    user: str
+    text: str
+
+class CreateCapacityResourceRequest(BaseModel):
+    user_id: str
+    name: str
+    role: str
+
+class UpdateEffortEstimateRequest(BaseModel):
+    effort_points: float
+    assigned_resources: List[str] = Field(default_factory=list)
+
+class CreateReportRequest(BaseModel):
+    name: str
+    type: str
+    config: Dict[str, Any]
+
+class CreateWhiteboardRequest(BaseModel):
+    name: str
+    linked_to: Optional[Dict[str, str]] = None
+
+class CreateIntegrationRequest(BaseModel):
+    type: str
+    config: Dict[str, Any]

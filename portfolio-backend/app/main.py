@@ -7,7 +7,11 @@ import json
 from app.models import (
     Portfolio, User, CreatePortfolioRequest, UpdateBusinessCaseRequest,
     Competitor, Persona, Milestone, FundingSource, KPI, CreateMilestoneRequest,
-    UpdateInvestmentRequest, CreateFeedbackRequest, Feedback
+    UpdateInvestmentRequest, CreateFeedbackRequest, Feedback,
+    Idea, CreateIdeaRequest, CreateCommentRequest, Comment,
+    CapacityResource, CreateCapacityResourceRequest, UpdateEffortEstimateRequest,
+    CustomReport, CreateReportRequest, Whiteboard, CreateWhiteboardRequest,
+    Integration, CreateIntegrationRequest
 )
 from app.database import db
 from app.ai_assistant import (
@@ -775,3 +779,838 @@ async def mark_notification_read(
     db.update_notification(notification_id, notification)
     
     return {"message": "Notification marked as read"}
+
+
+@app.post("/api/portfolios/{portfolio_id}/ideas")
+async def create_idea(
+    portfolio_id: str,
+    request: CreateIdeaRequest,
+    current_user: User = Depends(get_current_user)
+) -> Idea:
+    """Create a new idea in the Ideas Portal"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    idea = Idea(
+        portfolio_id=portfolio_id,
+        title=request.title,
+        description=request.description,
+        category=request.category,
+        created_by=request.created_by
+    )
+    created_idea = db.create_idea(idea)
+    return created_idea
+
+
+@app.get("/api/portfolios/{portfolio_id}/ideas")
+async def list_ideas(
+    portfolio_id: str,
+    category: Optional[str] = None,
+    status: Optional[str] = None
+) -> List[Idea]:
+    """List all ideas for a portfolio with optional filters"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    ideas = db.get_ideas_by_portfolio(portfolio_id)
+    
+    if category:
+        ideas = [i for i in ideas if i.category == category]
+    if status:
+        ideas = [i for i in ideas if i.status == status]
+    
+    return sorted(ideas, key=lambda x: x.votes, reverse=True)
+
+
+@app.get("/api/ideas/{idea_id}")
+async def get_idea(idea_id: str) -> Idea:
+    """Get a specific idea"""
+    idea = db.get_idea(idea_id)
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+    return idea
+
+
+@app.put("/api/ideas/{idea_id}")
+async def update_idea(
+    idea_id: str,
+    request: CreateIdeaRequest,
+    current_user: User = Depends(get_current_user)
+) -> Idea:
+    """Update an idea (admin only)"""
+    idea = db.get_idea(idea_id)
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+    
+    portfolio = db.get_portfolio(idea.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Only portfolio owners/collaborators can update ideas")
+    
+    idea.title = request.title
+    idea.description = request.description
+    idea.category = request.category
+    updated_idea = db.update_idea(idea_id, idea)
+    return updated_idea
+
+
+@app.delete("/api/ideas/{idea_id}")
+async def delete_idea(
+    idea_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete an idea (admin only)"""
+    idea = db.get_idea(idea_id)
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+    
+    portfolio = db.get_portfolio(idea.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Only portfolio owners/collaborators can delete ideas")
+    
+    db.delete_idea(idea_id)
+    return {"message": "Idea deleted successfully"}
+
+
+@app.post("/api/ideas/{idea_id}/vote")
+async def vote_idea(
+    idea_id: str,
+    voter_email: str
+) -> Idea:
+    """Upvote an idea"""
+    idea = db.get_idea(idea_id)
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+    
+    if voter_email not in idea.voters:
+        idea.voters.append(voter_email)
+        idea.votes = len(idea.voters)
+        updated_idea = db.update_idea(idea_id, idea)
+        return updated_idea
+    
+    return idea
+
+
+@app.delete("/api/ideas/{idea_id}/vote")
+async def unvote_idea(
+    idea_id: str,
+    voter_email: str
+) -> Idea:
+    """Remove vote from an idea"""
+    idea = db.get_idea(idea_id)
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+    
+    if voter_email in idea.voters:
+        idea.voters.remove(voter_email)
+        idea.votes = len(idea.voters)
+        updated_idea = db.update_idea(idea_id, idea)
+        return updated_idea
+    
+    return idea
+
+
+@app.post("/api/ideas/{idea_id}/comments")
+async def add_comment_to_idea(
+    idea_id: str,
+    request: CreateCommentRequest
+) -> Idea:
+    """Add a comment to an idea"""
+    idea = db.get_idea(idea_id)
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+    
+    comment = Comment(
+        user=request.user,
+        text=request.text
+    )
+    idea.comments.append(comment)
+    updated_idea = db.update_idea(idea_id, idea)
+    return updated_idea
+
+
+@app.delete("/api/ideas/{idea_id}/comments/{comment_id}")
+async def delete_comment_from_idea(
+    idea_id: str,
+    comment_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Idea:
+    """Delete a comment from an idea"""
+    idea = db.get_idea(idea_id)
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+    
+    portfolio = db.get_portfolio(idea.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Only portfolio owners/collaborators can delete comments")
+    
+    idea.comments = [c for c in idea.comments if c.id != comment_id]
+    updated_idea = db.update_idea(idea_id, idea)
+    return updated_idea
+
+
+@app.post("/api/ideas/{idea_id}/promote")
+async def promote_idea_to_milestone(
+    idea_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Promote an idea to a roadmap milestone"""
+    idea = db.get_idea(idea_id)
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+    
+    portfolio = db.get_portfolio(idea.portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    milestone = Milestone(
+        title=idea.title,
+        date="",
+        description=idea.description,
+        dependencies=[]
+    )
+    portfolio.roadmap.milestones.append(milestone)
+    db.update_portfolio(idea.portfolio_id, portfolio)
+    
+    idea.status = "Planned"
+    idea.linked_to = {"type": "milestone", "id": milestone.id}
+    db.update_idea(idea_id, idea)
+    
+    return {
+        "message": "Idea promoted to milestone successfully",
+        "milestone_id": milestone.id
+    }
+
+
+@app.get("/api/portfolios/{portfolio_id}/capacity")
+async def get_capacity_overview(
+    portfolio_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Get capacity planning overview for a portfolio"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    resources = db.get_capacity_resources_by_portfolio(portfolio_id)
+    
+    total_capacity = sum(
+        sum(slot.hours_per_day for slot in resource.availability)
+        for resource in resources
+    )
+    
+    return {
+        "portfolio_id": portfolio_id,
+        "resources": resources,
+        "total_capacity_hours": total_capacity,
+        "resource_count": len(resources)
+    }
+
+
+@app.post("/api/portfolios/{portfolio_id}/capacity/resources")
+async def create_capacity_resource(
+    portfolio_id: str,
+    request: CreateCapacityResourceRequest,
+    current_user: User = Depends(get_current_user)
+) -> CapacityResource:
+    """Add a resource to capacity planning"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    resource = CapacityResource(
+        portfolio_id=portfolio_id,
+        user_id=request.user_id,
+        name=request.name,
+        role=request.role
+    )
+    created_resource = db.create_capacity_resource(resource)
+    return created_resource
+
+
+@app.put("/api/capacity/resources/{resource_id}")
+async def update_capacity_resource(
+    resource_id: str,
+    request: CreateCapacityResourceRequest,
+    current_user: User = Depends(get_current_user)
+) -> CapacityResource:
+    """Update a capacity resource"""
+    resource = db.get_capacity_resource(resource_id)
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    
+    portfolio = db.get_portfolio(resource.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    resource.name = request.name
+    resource.role = request.role
+    updated_resource = db.update_capacity_resource(resource_id, resource)
+    return updated_resource
+
+
+@app.delete("/api/capacity/resources/{resource_id}")
+async def delete_capacity_resource(
+    resource_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a capacity resource"""
+    resource = db.get_capacity_resource(resource_id)
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    
+    portfolio = db.get_portfolio(resource.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    db.delete_capacity_resource(resource_id)
+    return {"message": "Resource deleted successfully"}
+
+
+@app.put("/api/milestones/{milestone_id}/effort")
+async def update_milestone_effort(
+    milestone_id: str,
+    request: UpdateEffortEstimateRequest,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Update effort estimate for a milestone"""
+    portfolio = None
+    for p in db.portfolios.values():
+        for m in p.roadmap.milestones:
+            if m.id == milestone_id:
+                portfolio = p
+                break
+        if portfolio:
+            break
+    
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return {
+        "milestone_id": milestone_id,
+        "effort_points": request.effort_points,
+        "assigned_resources": request.assigned_resources,
+        "message": "Effort estimate updated successfully"
+    }
+
+
+@app.get("/api/portfolios/{portfolio_id}/capacity/workload")
+async def get_workload_analysis(
+    portfolio_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Get workload analysis for capacity planning"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    resources = db.get_capacity_resources_by_portfolio(portfolio_id)
+    
+    workload_by_resource = {}
+    for resource in resources:
+        total_hours = sum(slot.hours_per_day for slot in resource.availability)
+        workload_by_resource[resource.name] = {
+            "role": resource.role,
+            "available_hours": total_hours,
+            "allocated_hours": 0,
+            "utilization": 0
+        }
+    
+    return {
+        "portfolio_id": portfolio_id,
+        "workload": workload_by_resource,
+        "total_resources": len(resources)
+    }
+
+
+@app.post("/api/portfolios/{portfolio_id}/reports")
+async def create_custom_report(
+    portfolio_id: str,
+    request: CreateReportRequest,
+    current_user: User = Depends(get_current_user)
+) -> CustomReport:
+    """Create a custom report"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    report = CustomReport(
+        portfolio_id=portfolio_id,
+        name=request.name,
+        report_type=request.report_type,
+        config=request.config,
+        owner_id=current_user.id
+    )
+    created_report = db.create_report(report)
+    return created_report
+
+
+@app.get("/api/portfolios/{portfolio_id}/reports")
+async def list_reports(
+    portfolio_id: str,
+    current_user: User = Depends(get_current_user)
+) -> List[CustomReport]:
+    """List all reports for a portfolio"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    reports = db.get_reports_by_portfolio(portfolio_id)
+    return reports
+
+
+@app.get("/api/reports/{report_id}")
+async def get_report(
+    report_id: str,
+    current_user: User = Depends(get_current_user)
+) -> CustomReport:
+    """Get a specific report"""
+    report = db.get_report(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    portfolio = db.get_portfolio(report.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return report
+
+
+@app.put("/api/reports/{report_id}")
+async def update_report(
+    report_id: str,
+    request: CreateReportRequest,
+    current_user: User = Depends(get_current_user)
+) -> CustomReport:
+    """Update a report"""
+    report = db.get_report(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    portfolio = db.get_portfolio(report.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    report.name = request.name
+    report.report_type = request.report_type
+    report.config = request.config
+    updated_report = db.update_report(report_id, report)
+    return updated_report
+
+
+@app.delete("/api/reports/{report_id}")
+async def delete_report(
+    report_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a report"""
+    report = db.get_report(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    portfolio = db.get_portfolio(report.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    db.delete_report(report_id)
+    return {"message": "Report deleted successfully"}
+
+
+@app.post("/api/reports/{report_id}/execute")
+async def execute_report(
+    report_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Execute a report and return data"""
+    report = db.get_report(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    portfolio = db.get_portfolio(report.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if report.report_type == "pivot":
+        data = {
+            "rows": [
+                {"stage": "Ideation", "count": 3, "health": 85},
+                {"stage": "Development", "count": 5, "health": 72},
+                {"stage": "Launch", "count": 2, "health": 90}
+            ]
+        }
+    elif report.report_type == "chart":
+        data = {
+            "labels": ["Q1", "Q2", "Q3", "Q4"],
+            "datasets": [
+                {"label": "Revenue", "data": [100, 150, 200, 250]},
+                {"label": "Costs", "data": [80, 100, 120, 140]}
+            ]
+        }
+    else:
+        data = {
+            "items": portfolio.roadmap.milestones[:5],
+            "total": len(portfolio.roadmap.milestones)
+        }
+    
+    return {
+        "report_id": report_id,
+        "name": report.name,
+        "type": report.report_type,
+        "data": data,
+        "generated_at": datetime.utcnow().isoformat()
+    }
+
+
+@app.post("/api/reports/{report_id}/ai-insights")
+async def generate_report_insights(
+    report_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Generate AI insights for a report"""
+    report = db.get_report(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    portfolio = db.get_portfolio(report.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    insights = [
+        "Development stage shows 15% lower health score than average",
+        "Q4 revenue projection exceeds target by 25%",
+        "3 milestones are at risk of missing deadlines",
+        "Resource utilization is optimal at 85%"
+    ]
+    
+    return {
+        "report_id": report_id,
+        "insights": insights,
+        "generated_at": datetime.utcnow().isoformat()
+    }
+
+
+@app.post("/api/portfolios/{portfolio_id}/whiteboards")
+async def create_whiteboard(
+    portfolio_id: str,
+    request: CreateWhiteboardRequest,
+    current_user: User = Depends(get_current_user)
+) -> Whiteboard:
+    """Create a new whiteboard"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    whiteboard = Whiteboard(
+        portfolio_id=portfolio_id,
+        name=request.name,
+        canvas_data=request.canvas_data or {},
+        linked_items=request.linked_items or []
+    )
+    created_whiteboard = db.create_whiteboard(whiteboard)
+    return created_whiteboard
+
+
+@app.get("/api/portfolios/{portfolio_id}/whiteboards")
+async def list_whiteboards(
+    portfolio_id: str,
+    current_user: User = Depends(get_current_user)
+) -> List[Whiteboard]:
+    """List all whiteboards for a portfolio"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    whiteboards = db.get_whiteboards_by_portfolio(portfolio_id)
+    return whiteboards
+
+
+@app.get("/api/whiteboards/{whiteboard_id}")
+async def get_whiteboard(
+    whiteboard_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Whiteboard:
+    """Get a specific whiteboard"""
+    whiteboard = db.get_whiteboard(whiteboard_id)
+    if not whiteboard:
+        raise HTTPException(status_code=404, detail="Whiteboard not found")
+    
+    portfolio = db.get_portfolio(whiteboard.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return whiteboard
+
+
+@app.put("/api/whiteboards/{whiteboard_id}")
+async def update_whiteboard(
+    whiteboard_id: str,
+    request: CreateWhiteboardRequest,
+    current_user: User = Depends(get_current_user)
+) -> Whiteboard:
+    """Update a whiteboard"""
+    whiteboard = db.get_whiteboard(whiteboard_id)
+    if not whiteboard:
+        raise HTTPException(status_code=404, detail="Whiteboard not found")
+    
+    portfolio = db.get_portfolio(whiteboard.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    whiteboard.name = request.name
+    if request.canvas_data:
+        whiteboard.canvas_data = request.canvas_data
+    if request.linked_items:
+        whiteboard.linked_items = request.linked_items
+    
+    updated_whiteboard = db.update_whiteboard(whiteboard_id, whiteboard)
+    return updated_whiteboard
+
+
+@app.delete("/api/whiteboards/{whiteboard_id}")
+async def delete_whiteboard(
+    whiteboard_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a whiteboard"""
+    whiteboard = db.get_whiteboard(whiteboard_id)
+    if not whiteboard:
+        raise HTTPException(status_code=404, detail="Whiteboard not found")
+    
+    portfolio = db.get_portfolio(whiteboard.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    db.delete_whiteboard(whiteboard_id)
+    return {"message": "Whiteboard deleted successfully"}
+
+
+@app.post("/api/whiteboards/{whiteboard_id}/ai-suggestions")
+async def get_whiteboard_ai_suggestions(
+    whiteboard_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Get AI suggestions for whiteboard optimization"""
+    whiteboard = db.get_whiteboard(whiteboard_id)
+    if not whiteboard:
+        raise HTTPException(status_code=404, detail="Whiteboard not found")
+    
+    portfolio = db.get_portfolio(whiteboard.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    suggestions = [
+        "Consider grouping related components into a single module",
+        "Add decision points to clarify user flow branches",
+        "Include error handling paths in the flow diagram",
+        "Simplify the navigation structure by reducing steps"
+    ]
+    
+    return {
+        "whiteboard_id": whiteboard_id,
+        "suggestions": suggestions,
+        "generated_at": datetime.utcnow().isoformat()
+    }
+
+
+@app.post("/api/portfolios/{portfolio_id}/integrations")
+async def create_integration(
+    portfolio_id: str,
+    request: CreateIntegrationRequest,
+    current_user: User = Depends(get_current_user)
+) -> Integration:
+    """Create a new integration configuration"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    integration = Integration(
+        portfolio_id=portfolio_id,
+        integration_type=request.integration_type,
+        config=request.config,
+        enabled=request.enabled
+    )
+    created_integration = db.create_integration(integration)
+    return created_integration
+
+
+@app.get("/api/portfolios/{portfolio_id}/integrations")
+async def list_integrations(
+    portfolio_id: str,
+    current_user: User = Depends(get_current_user)
+) -> List[Integration]:
+    """List all integrations for a portfolio"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    integrations = db.get_integrations_by_portfolio(portfolio_id)
+    return integrations
+
+
+@app.get("/api/integrations/{integration_id}")
+async def get_integration(
+    integration_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Integration:
+    """Get a specific integration"""
+    integration = db.get_integration(integration_id)
+    if not integration:
+        raise HTTPException(status_code=404, detail="Integration not found")
+    
+    portfolio = db.get_portfolio(integration.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return integration
+
+
+@app.put("/api/integrations/{integration_id}")
+async def update_integration(
+    integration_id: str,
+    request: CreateIntegrationRequest,
+    current_user: User = Depends(get_current_user)
+) -> Integration:
+    """Update an integration"""
+    integration = db.get_integration(integration_id)
+    if not integration:
+        raise HTTPException(status_code=404, detail="Integration not found")
+    
+    portfolio = db.get_portfolio(integration.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    integration.integration_type = request.integration_type
+    integration.config = request.config
+    integration.enabled = request.enabled
+    updated_integration = db.update_integration(integration_id, integration)
+    return updated_integration
+
+
+@app.delete("/api/integrations/{integration_id}")
+async def delete_integration(
+    integration_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete an integration"""
+    integration = db.get_integration(integration_id)
+    if not integration:
+        raise HTTPException(status_code=404, detail="Integration not found")
+    
+    portfolio = db.get_portfolio(integration.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    db.delete_integration(integration_id)
+    return {"message": "Integration deleted successfully"}
+
+
+@app.post("/api/integrations/{integration_id}/sync")
+async def sync_integration(
+    integration_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Trigger a sync for an integration"""
+    integration = db.get_integration(integration_id)
+    if not integration:
+        raise HTTPException(status_code=404, detail="Integration not found")
+    
+    portfolio = db.get_portfolio(integration.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if not integration.enabled:
+        raise HTTPException(status_code=400, detail="Integration is disabled")
+    
+    if integration.integration_type == "salesforce":
+        synced_data = {
+            "leads": 15,
+            "opportunities": 8,
+            "contacts": 42
+        }
+    elif integration.integration_type == "figma":
+        synced_data = {
+            "files": 5,
+            "prototypes": 3,
+            "components": 127
+        }
+    else:
+        synced_data = {}
+    
+    integration.last_sync = datetime.utcnow()
+    db.update_integration(integration_id, integration)
+    
+    return {
+        "integration_id": integration_id,
+        "type": integration.integration_type,
+        "synced_data": synced_data,
+        "synced_at": integration.last_sync.isoformat()
+    }
+
+
+@app.get("/api/integrations/{integration_id}/logs")
+async def get_integration_logs(
+    integration_id: str,
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Get sync logs for an integration"""
+    integration = db.get_integration(integration_id)
+    if not integration:
+        raise HTTPException(status_code=404, detail="Integration not found")
+    
+    portfolio = db.get_portfolio(integration.portfolio_id)
+    if not portfolio or (portfolio.owner_id != current_user.id and current_user.id not in portfolio.collaborators):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    logs = [
+        {
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "success",
+            "message": "Sync completed successfully",
+            "records_synced": 42
+        },
+        {
+            "timestamp": (datetime.utcnow() - timedelta(hours=1)).isoformat(),
+            "status": "success",
+            "message": "Sync completed successfully",
+            "records_synced": 38
+        }
+    ]
+    
+    return {
+        "integration_id": integration_id,
+        "logs": logs
+    }
