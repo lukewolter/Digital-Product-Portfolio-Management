@@ -1,0 +1,148 @@
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+from uuid import uuid4
+
+def generate_id():
+    return str(uuid4())
+
+class SWOT(BaseModel):
+    strengths: str = ""
+    weaknesses: str = ""
+    opportunities: str = ""
+    threats: str = ""
+
+class BusinessCase(BaseModel):
+    problem: str = ""
+    value_prop: str = ""
+    swot: SWOT = Field(default_factory=SWOT)
+    template: str = "blank"
+
+class Competitor(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    name: str
+    strengths: str
+    weaknesses: str
+
+class Persona(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    demographics: str
+    pain_points: str
+
+class Feedback(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    source: str
+    text: str
+    sentiment: float = 0.0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class MarketResearch(BaseModel):
+    competitors: List[Competitor] = Field(default_factory=list)
+    personas: List[Persona] = Field(default_factory=list)
+    feedback: List[Feedback] = Field(default_factory=list)
+    chart_data: Dict[str, Any] = Field(default_factory=dict)
+
+class Milestone(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    title: str
+    date: str
+    dependencies: List[str] = Field(default_factory=list)
+    description: str = ""
+
+class Roadmap(BaseModel):
+    milestones: List[Milestone] = Field(default_factory=list)
+
+class FundingSource(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    source: str
+    amount: float
+
+class Scenarios(BaseModel):
+    multiplier: float = 1.0
+
+class Investment(BaseModel):
+    budget: float = 0.0
+    revenue: float = 0.0
+    roi: float = 0.0
+    npv: float = 0.0
+    funding: List[FundingSource] = Field(default_factory=list)
+    scenarios: Scenarios = Field(default_factory=Scenarios)
+
+class KPI(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    metric: str
+    value: float
+
+class Lifecycle(BaseModel):
+    current_stage: str = "Ideation"
+    kpis: List[KPI] = Field(default_factory=list)
+    reminders: List[str] = Field(default_factory=list)
+
+class Version(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    user_id: str
+    changes: Dict[str, Any] = Field(default_factory=dict)
+    snapshot: Dict[str, Any] = Field(default_factory=dict)
+
+class Portfolio(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    name: str
+    description: str = ""
+    owner_id: str
+    collaborators: List[str] = Field(default_factory=list)
+    business_case: BusinessCase = Field(default_factory=BusinessCase)
+    market_research: MarketResearch = Field(default_factory=MarketResearch)
+    roadmap: Roadmap = Field(default_factory=Roadmap)
+    investment: Investment = Field(default_factory=Investment)
+    lifecycle: Lifecycle = Field(default_factory=Lifecycle)
+    versions: List[Version] = Field(default_factory=list)
+    health_score: float = 0.0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class User(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    email: str
+    name: str = ""
+    firebase_uid: str
+    portfolios: List[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Notification(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    user_id: str
+    portfolio_id: str
+    type: str
+    message: str
+    read: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CreatePortfolioRequest(BaseModel):
+    name: str
+    description: str = ""
+
+class UpdateBusinessCaseRequest(BaseModel):
+    problem: Optional[str] = None
+    value_prop: Optional[str] = None
+    swot: Optional[SWOT] = None
+    template: Optional[str] = None
+
+class CreateMilestoneRequest(BaseModel):
+    title: str
+    date: str
+    dependencies: List[str] = Field(default_factory=list)
+    description: str = ""
+
+class UpdateInvestmentRequest(BaseModel):
+    budget: Optional[float] = None
+    revenue: Optional[float] = None
+    scenarios: Optional[Scenarios] = None
+
+class CreateFeedbackRequest(BaseModel):
+    source: str
+    text: str
+
+class AIRequest(BaseModel):
+    portfolio_id: str
+    data: Dict[str, Any]
