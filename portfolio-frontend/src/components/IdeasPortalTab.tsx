@@ -29,8 +29,8 @@ export default function IdeasPortalTab({ portfolioId }: IdeasPortalTabProps) {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [filterCategory, setFilterCategory] = useState<string>('');
-  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [newIdea, setNewIdea] = useState({
     title: '',
     description: '',
@@ -50,7 +50,9 @@ export default function IdeasPortalTab({ portfolioId }: IdeasPortalTabProps) {
   const loadIdeas = async () => {
     try {
       setLoading(true);
-      const data = await apiClient.getIdeas(portfolioId, filterCategory, filterStatus) as Idea[];
+      const cat = filterCategory === 'all' ? '' : filterCategory;
+      const stat = filterStatus === 'all' ? '' : filterStatus;
+      const data = await apiClient.getIdeas(portfolioId, cat, stat) as Idea[];
       setIdeas(data);
     } catch (error) {
       console.error('Failed to load ideas:', error);
@@ -185,7 +187,7 @@ export default function IdeasPortalTab({ portfolioId }: IdeasPortalTabProps) {
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Categories</SelectItem>
+              <SelectItem value="all">All Categories</SelectItem>
               {categories.map(cat => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}
@@ -199,7 +201,7 @@ export default function IdeasPortalTab({ portfolioId }: IdeasPortalTabProps) {
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
+              <SelectItem value="all">All Statuses</SelectItem>
               {statuses.map(status => (
                 <SelectItem key={status} value={status}>{status}</SelectItem>
               ))}
