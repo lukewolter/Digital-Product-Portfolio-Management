@@ -317,7 +317,7 @@ function App() {
               </Dialog>
 
               <Tabs defaultValue="overview" className="w-full">
-                <TabsList className={`grid w-full ${userRole === 'admin' ? 'grid-cols-6 lg:grid-cols-13' : 'grid-cols-6 lg:grid-cols-12'}`}>
+                <TabsList className="w-full overflow-x-auto whitespace-nowrap mb-4">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="business-case">Business Case</TabsTrigger>
                   <TabsTrigger value="market-research">Market Research</TabsTrigger>
