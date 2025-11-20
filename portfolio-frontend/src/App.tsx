@@ -165,7 +165,7 @@ function AppContent() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
               <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Product Management v3.0
+                  Product Portfolio Manager
                 </h1>
                 <Button variant="outline" onClick={() => setShowProfile(false)}>
                   Back to Dashboard
@@ -176,6 +176,14 @@ function AppContent() {
           <main className="py-8">
             <ProfileComponent />
           </main>
+          <footer className="bg-white dark:bg-gray-800 border-t mt-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+                <div>Version 3.0.0</div>
+                <div>© 2024 lukewolter.com</div>
+              </div>
+            </div>
+          </footer>
         </div>
       </div>
     );
@@ -196,7 +204,7 @@ function AppContent() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Product Management v3.0
+                Product Portfolio Manager
               </h1>
               
               <div className="flex items-center gap-4">
@@ -298,7 +306,7 @@ function AppContent() {
           {portfolios.length === 0 ? (
             <Card>
               <CardHeader>
-                <CardTitle>Welcome to Product Management v2.0</CardTitle>
+                <CardTitle>Welcome to Product Portfolio Manager</CardTitle>
                 <CardDescription>
                   Get started by creating your first product
                 </CardDescription>
@@ -546,6 +554,14 @@ function AppContent() {
             </div>
           )}
         </main>
+        <footer className="bg-white dark:bg-gray-800 border-t mt-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+              <div>Version 3.0.0</div>
+              <div>© 2024 lukewolter.com</div>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );
