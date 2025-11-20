@@ -85,12 +85,24 @@ class Version(BaseModel):
     changes: Dict[str, Any] = Field(default_factory=dict)
     snapshot: Dict[str, Any] = Field(default_factory=dict)
 
+class HierarchyNode(BaseModel):
+    parent_id: Optional[str] = None
+    level: str = "portfolio"  # "program", "portfolio", "product"
+    order: int = 0
+
+class CustomTerm(BaseModel):
+    key: str  # e.g., "milestone", "portfolio", "kpi"
+    value: str  # e.g., "Epic", "Product", "Metric"
+
 class Portfolio(BaseModel):
     id: str = Field(default_factory=generate_id)
     name: str
     description: str = ""
     owner_id: str
     collaborators: List[str] = Field(default_factory=list)
+    tenant_id: Optional[str] = None
+    hierarchy: HierarchyNode = Field(default_factory=HierarchyNode)
+    custom_terms: List[CustomTerm] = Field(default_factory=list)
     business_case: BusinessCase = Field(default_factory=BusinessCase)
     market_research: MarketResearch = Field(default_factory=MarketResearch)
     roadmap: Roadmap = Field(default_factory=Roadmap)
@@ -107,6 +119,8 @@ class User(BaseModel):
     name: str = ""
     firebase_uid: str
     portfolios: List[str] = Field(default_factory=list)
+    role: str = "user"  # "user", "admin"
+    tenant_id: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Notification(BaseModel):
@@ -243,3 +257,61 @@ class CreateWhiteboardRequest(BaseModel):
 class CreateIntegrationRequest(BaseModel):
     type: str
     config: Dict[str, Any]
+
+class Tenant(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    company_name: str
+    users: List[str] = Field(default_factory=list)  # User IDs
+    portfolios: List[str] = Field(default_factory=list)  # Portfolio IDs
+    settings: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class AuditLog(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    tenant_id: str
+    user_id: str
+    action: str  # "create", "update", "delete", "view"
+    resource_type: str  # "portfolio", "user", "tenant", etc.
+    resource_id: str
+    details: Dict[str, Any] = Field(default_factory=dict)
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+class Workspace(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    tenant_id: str
+    name: str
+    description: str = ""
+    parent_id: Optional[str] = None
+    level: str = "portfolio"  # "program", "portfolio", "product"
+    portfolios: List[str] = Field(default_factory=list)
+    custom_terms: List[CustomTerm] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CreateTenantRequest(BaseModel):
+    company_name: str
+    admin_email: str
+    admin_name: str = ""
+
+class UpdateTenantRequest(BaseModel):
+    company_name: Optional[str] = None
+    settings: Optional[Dict[str, Any]] = None
+
+class CreateWorkspaceRequest(BaseModel):
+    name: str
+    description: str = ""
+    parent_id: Optional[str] = None
+    level: str = "portfolio"
+
+class UpdateWorkspaceRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    parent_id: Optional[str] = None
+    custom_terms: Optional[List[CustomTerm]] = None
+
+class UpdateUserRoleRequest(BaseModel):
+    role: str  # "user", "admin"
+
+class UpdateCustomTermsRequest(BaseModel):
+    custom_terms: List[CustomTerm]

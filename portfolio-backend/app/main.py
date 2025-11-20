@@ -11,7 +11,10 @@ from app.models import (
     Idea, CreateIdeaRequest, CreateCommentRequest, Comment,
     CapacityResource, CreateCapacityResourceRequest, UpdateEffortEstimateRequest,
     CustomReport, CreateReportRequest, Whiteboard, CreateWhiteboardRequest,
-    Integration, CreateIntegrationRequest
+    Integration, CreateIntegrationRequest,
+    Tenant, Workspace, AuditLog, CreateTenantRequest, UpdateTenantRequest,
+    CreateWorkspaceRequest, UpdateWorkspaceRequest, UpdateUserRoleRequest,
+    UpdateCustomTermsRequest
 )
 from app.database import db
 from app.ai_assistant import (
@@ -65,9 +68,16 @@ async def create_portfolio(
     portfolio = Portfolio(
         name=request.name,
         description=request.description,
-        owner_id=current_user.id
+        owner_id=current_user.id,
+        tenant_id=current_user.tenant_id
     )
     created_portfolio = db.create_portfolio(portfolio)
+    
+    if current_user.tenant_id:
+        from app.rbac import log_audit
+        log_audit(current_user.tenant_id, current_user.id, "create", "portfolio", 
+                  created_portfolio.id, {"name": request.name})
+    
     return created_portfolio
 
 @app.get("/api/portfolios/{portfolio_id}")
@@ -1614,3 +1624,318 @@ async def get_integration_logs(
         "integration_id": integration_id,
         "logs": logs
     }
+
+# ============================================================================
+# MULTI-TENANCY AND WORKSPACE HIERARCHY ENDPOINTS
+# ============================================================================
+
+from app.rbac import get_current_user, require_admin, check_tenant_access, check_portfolio_access, log_audit
+from app.models import (
+    Tenant, Workspace, CreateTenantRequest, UpdateTenantRequest,
+    CreateWorkspaceRequest, UpdateWorkspaceRequest, UpdateUserRoleRequest,
+    UpdateCustomTermsRequest
+)
+
+# Tenant Management Endpoints (Admin Only)
+
+@app.post("/api/tenants")
+async def create_tenant(
+    request: CreateTenantRequest,
+    current_user: User = Depends(require_admin)
+) -> Tenant:
+    """Create a new tenant (admin only)"""
+    tenant = Tenant(
+        company_name=request.company_name,
+        users=[],
+        portfolios=[]
+    )
+    created_tenant = db.create_tenant(tenant)
+    
+    admin_user = User(
+        email=request.admin_email,
+        name=request.admin_name,
+        firebase_uid=f"firebase-{request.admin_email}",
+        role="admin",
+        tenant_id=created_tenant.id
+    )
+    created_user = db.create_user(admin_user)
+    
+    created_tenant.users.append(created_user.id)
+    db.update_tenant(created_tenant.id, created_tenant)
+    
+    log_audit(created_tenant.id, current_user.id, "create", "tenant", created_tenant.id, 
+              {"company_name": request.company_name})
+    
+    return created_tenant
+
+
+@app.get("/api/tenants")
+async def list_tenants(
+    current_user: User = Depends(require_admin)
+) -> List[Tenant]:
+    """List all tenants (admin only)"""
+    tenants = db.get_all_tenants()
+    return tenants
+
+
+@app.get("/api/tenants/{tenant_id}")
+async def get_tenant(
+    tenant_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Tenant:
+    """Get tenant details"""
+    tenant = db.get_tenant(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    
+    if not check_tenant_access(current_user, tenant_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return tenant
+
+
+@app.put("/api/tenants/{tenant_id}")
+async def update_tenant(
+    tenant_id: str,
+    request: UpdateTenantRequest,
+    current_user: User = Depends(require_admin)
+) -> Tenant:
+    """Update tenant (admin only)"""
+    tenant = db.get_tenant(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    
+    if not check_tenant_access(current_user, tenant_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if request.company_name:
+        tenant.company_name = request.company_name
+    if request.settings:
+        tenant.settings = request.settings
+    
+    updated_tenant = db.update_tenant(tenant_id, tenant)
+    
+    log_audit(tenant_id, current_user.id, "update", "tenant", tenant_id, 
+              {"changes": request.dict(exclude_unset=True)})
+    
+    return updated_tenant
+
+
+@app.delete("/api/tenants/{tenant_id}")
+async def delete_tenant(
+    tenant_id: str,
+    current_user: User = Depends(require_admin)
+):
+    """Delete tenant (admin only)"""
+    tenant = db.get_tenant(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    
+    if not check_tenant_access(current_user, tenant_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    db.delete_tenant(tenant_id)
+    
+    log_audit(tenant_id, current_user.id, "delete", "tenant", tenant_id, {})
+    
+    return {"message": "Tenant deleted successfully"}
+
+
+# User Management Endpoints (Admin Only)
+
+@app.get("/api/tenants/{tenant_id}/users")
+async def list_tenant_users(
+    tenant_id: str,
+    current_user: User = Depends(require_admin)
+) -> List[User]:
+    """List all users in a tenant (admin only)"""
+    if not check_tenant_access(current_user, tenant_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    users = db.get_users_by_tenant(tenant_id)
+    return users
+
+
+@app.put("/api/users/{user_id}/role")
+async def update_user_role(
+    user_id: str,
+    request: UpdateUserRoleRequest,
+    current_user: User = Depends(require_admin)
+) -> User:
+    """Update user role (admin only)"""
+    user = db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if not check_tenant_access(current_user, user.tenant_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    user.role = request.role
+    updated_user = db.update_user(user_id, user)
+    
+    log_audit(user.tenant_id, current_user.id, "update", "user", user_id, 
+              {"role": request.role})
+    
+    return updated_user
+
+
+# Workspace Hierarchy Endpoints
+
+@app.post("/api/workspaces")
+async def create_workspace(
+    request: CreateWorkspaceRequest,
+    current_user: User = Depends(get_current_user)
+) -> Workspace:
+    """Create a new workspace"""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="User must belong to a tenant")
+    
+    workspace = Workspace(
+        tenant_id=current_user.tenant_id,
+        name=request.name,
+        description=request.description,
+        parent_id=request.parent_id,
+        level=request.level,
+        portfolios=[],
+        custom_terms=[]
+    )
+    created_workspace = db.create_workspace(workspace)
+    
+    log_audit(current_user.tenant_id, current_user.id, "create", "workspace", 
+              created_workspace.id, {"name": request.name, "level": request.level})
+    
+    return created_workspace
+
+
+@app.get("/api/workspaces")
+async def list_workspaces(
+    current_user: User = Depends(get_current_user)
+) -> List[Workspace]:
+    """List all workspaces for current tenant"""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="User must belong to a tenant")
+    
+    workspaces = db.get_workspaces_by_tenant(current_user.tenant_id)
+    return workspaces
+
+
+@app.get("/api/workspaces/{workspace_id}")
+async def get_workspace(
+    workspace_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Workspace:
+    """Get workspace details"""
+    workspace = db.get_workspace(workspace_id)
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    if not check_tenant_access(current_user, workspace.tenant_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return workspace
+
+
+@app.put("/api/workspaces/{workspace_id}")
+async def update_workspace(
+    workspace_id: str,
+    request: UpdateWorkspaceRequest,
+    current_user: User = Depends(get_current_user)
+) -> Workspace:
+    """Update workspace"""
+    workspace = db.get_workspace(workspace_id)
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    if not check_tenant_access(current_user, workspace.tenant_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if request.name:
+        workspace.name = request.name
+    if request.description is not None:
+        workspace.description = request.description
+    if request.parent_id is not None:
+        workspace.parent_id = request.parent_id
+    if request.custom_terms:
+        workspace.custom_terms = request.custom_terms
+    
+    updated_workspace = db.update_workspace(workspace_id, workspace)
+    
+    log_audit(current_user.tenant_id, current_user.id, "update", "workspace", 
+              workspace_id, {"changes": request.dict(exclude_unset=True)})
+    
+    return updated_workspace
+
+
+@app.delete("/api/workspaces/{workspace_id}")
+async def delete_workspace(
+    workspace_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete workspace"""
+    workspace = db.get_workspace(workspace_id)
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    if not check_tenant_access(current_user, workspace.tenant_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    db.delete_workspace(workspace_id)
+    
+    log_audit(current_user.tenant_id, current_user.id, "delete", "workspace", workspace_id, {})
+    
+    return {"message": "Workspace deleted successfully"}
+
+
+# Custom Terms Endpoints
+
+@app.put("/api/portfolios/{portfolio_id}/custom-terms")
+async def update_portfolio_custom_terms(
+    portfolio_id: str,
+    request: UpdateCustomTermsRequest,
+    current_user: User = Depends(get_current_user)
+) -> Portfolio:
+    """Update custom terminology for a portfolio"""
+    portfolio = db.get_portfolio(portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if not check_portfolio_access(current_user, portfolio):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    portfolio.custom_terms = request.custom_terms
+    updated_portfolio = db.update_portfolio(portfolio_id, portfolio)
+    
+    log_audit(current_user.tenant_id, current_user.id, "update", "portfolio", 
+              portfolio_id, {"custom_terms": [t.dict() for t in request.custom_terms]})
+    
+    return updated_portfolio
+
+
+# Audit Log Endpoints
+
+@app.get("/api/audit-logs")
+async def get_audit_logs(
+    current_user: User = Depends(require_admin),
+    limit: int = 100
+) -> List[AuditLog]:
+    """Get audit logs for current tenant (admin only)"""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="User must belong to a tenant")
+    
+    logs = db.get_audit_logs_by_tenant(current_user.tenant_id, limit)
+    return logs
+
+
+# Enhanced Portfolio Endpoints with Tenant Scoping
+
+@app.get("/api/tenants/{tenant_id}/portfolios")
+async def list_tenant_portfolios(
+    tenant_id: str,
+    current_user: User = Depends(get_current_user)
+) -> List[Portfolio]:
+    """List all portfolios for a tenant"""
+    if not check_tenant_access(current_user, tenant_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    portfolios = db.get_portfolios_by_tenant(tenant_id)
+    return portfolios

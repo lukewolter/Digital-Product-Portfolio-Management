@@ -5,7 +5,8 @@ Data will be lost on server restart - this is a proof of concept
 from typing import Dict, List, Optional
 from app.models import (
     User, Portfolio, Notification, 
-    Idea, CapacityResource, CustomReport, Whiteboard, Integration
+    Idea, CapacityResource, CustomReport, Whiteboard, Integration,
+    Tenant, AuditLog, Workspace
 )
 from datetime import datetime
 
@@ -21,19 +22,35 @@ class InMemoryDB:
         self.whiteboards: Dict[str, Whiteboard] = {}
         self.integrations: Dict[str, Integration] = {}
         
+        self.tenants: Dict[str, Tenant] = {}
+        self.audit_logs: Dict[str, AuditLog] = {}
+        self.workspaces: Dict[str, Workspace] = {}
+        
         self._init_mock_data()
     
     def _init_mock_data(self):
         """Initialize with mock data for testing"""
+        test_tenant = Tenant(
+            id="test-tenant-1",
+            company_name="Test Company",
+            users=[],
+            portfolios=[]
+        )
+        self.tenants[test_tenant.id] = test_tenant
+        
         test_user = User(
             id="test-user-1",
             email="test@example.com",
             name="Test User",
             firebase_uid="test-firebase-uid",
-            portfolios=[]
+            portfolios=[],
+            role="admin",
+            tenant_id="test-tenant-1"
         )
         self.users[test_user.id] = test_user
-        self.users[test_user.firebase_uid] = test_user  # Also index by firebase_uid
+        self.users[test_user.firebase_uid] = test_user
+        
+        test_tenant.users.append(test_user.id)
     
     def get_user_by_firebase_uid(self, firebase_uid: str) -> Optional[User]:
         return self.users.get(firebase_uid)
@@ -222,6 +239,67 @@ class InMemoryDB:
     def delete_integration(self, integration_id: str) -> bool:
         if integration_id in self.integrations:
             del self.integrations[integration_id]
+            return True
+        return False
+    
+    def get_tenant(self, tenant_id: str) -> Optional[Tenant]:
+        return self.tenants.get(tenant_id)
+    
+    def get_all_tenants(self) -> List[Tenant]:
+        return list(self.tenants.values())
+    
+    def create_tenant(self, tenant: Tenant) -> Tenant:
+        self.tenants[tenant.id] = tenant
+        return tenant
+    
+    def update_tenant(self, tenant_id: str, tenant: Tenant) -> Optional[Tenant]:
+        if tenant_id in self.tenants:
+            tenant.updated_at = datetime.utcnow()
+            self.tenants[tenant_id] = tenant
+            return tenant
+        return None
+    
+    def delete_tenant(self, tenant_id: str) -> bool:
+        if tenant_id in self.tenants:
+            del self.tenants[tenant_id]
+            return True
+        return False
+    
+    def get_users_by_tenant(self, tenant_id: str) -> List[User]:
+        return [u for u in self.users.values() if u.tenant_id == tenant_id]
+    
+    def get_portfolios_by_tenant(self, tenant_id: str) -> List[Portfolio]:
+        return [p for p in self.portfolios.values() if p.tenant_id == tenant_id]
+    
+    def create_audit_log(self, log: AuditLog) -> AuditLog:
+        self.audit_logs[log.id] = log
+        return log
+    
+    def get_audit_logs_by_tenant(self, tenant_id: str, limit: int = 100) -> List[AuditLog]:
+        logs = [l for l in self.audit_logs.values() if l.tenant_id == tenant_id]
+        logs.sort(key=lambda x: x.timestamp, reverse=True)
+        return logs[:limit]
+    
+    def get_workspace(self, workspace_id: str) -> Optional[Workspace]:
+        return self.workspaces.get(workspace_id)
+    
+    def get_workspaces_by_tenant(self, tenant_id: str) -> List[Workspace]:
+        return [w for w in self.workspaces.values() if w.tenant_id == tenant_id]
+    
+    def create_workspace(self, workspace: Workspace) -> Workspace:
+        self.workspaces[workspace.id] = workspace
+        return workspace
+    
+    def update_workspace(self, workspace_id: str, workspace: Workspace) -> Optional[Workspace]:
+        if workspace_id in self.workspaces:
+            workspace.updated_at = datetime.utcnow()
+            self.workspaces[workspace_id] = workspace
+            return workspace
+        return None
+    
+    def delete_workspace(self, workspace_id: str) -> bool:
+        if workspace_id in self.workspaces:
+            del self.workspaces[workspace_id]
             return True
         return False
 
