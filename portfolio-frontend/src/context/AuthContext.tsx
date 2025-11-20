@@ -30,7 +30,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const checkAuth = async () => {
     try {
-      const userData = await apiClient.getCurrentUser();
+      const userData = await apiClient.getCurrentUser() as User;
       setUser(userData);
     } catch (error) {
       setUser(null);
@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const login = async (email: string, password: string) => {
-    const userData = await apiClient.login(email, password);
+    const userData = await apiClient.login(email, password) as User;
     setUser(userData);
   };
 
@@ -50,7 +50,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateProfile = async (data: { name?: string; email?: string }) => {
-    const updatedUser = await apiClient.updateProfile(data);
+    const updatedUser = await apiClient.updateProfile(data) as User;
     setUser(updatedUser);
   };
 
