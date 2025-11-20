@@ -7,8 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Save, Download, Moon, Sun, Trash2 } from 'lucide-react';
+import { Plus, Save, Download, Moon, Sun, Trash2, LogOut, User } from 'lucide-react';
 import { apiClient } from './lib/api';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import LoginComponent from './components/LoginComponent';
+import ProfileComponent from './components/ProfileComponent';
 import { MarketResearchTab } from './components/MarketResearchTab';
 import { RoadmapTab } from './components/RoadmapTab';
 import { InvestmentTab } from './components/InvestmentTab';
@@ -37,7 +40,8 @@ interface Portfolio {
   updated_at: string;
 }
 
-function App() {
+function AppContent() {
+  const { user, logout, loading: authLoading } = useAuth();
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [currentPortfolio, setCurrentPortfolio] = useState<Portfolio | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,24 +50,13 @@ function App() {
   const [newPortfolioName, setNewPortfolioName] = useState('');
   const [newPortfolioDesc, setNewPortfolioDesc] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [userRole, setUserRole] = useState<string>('user');
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
-    loadPortfolios();
-    loadCurrentUser();
-  }, []);
-
-  const loadCurrentUser = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const user = await response.json();
-      setUserRole(user.role || 'user');
-    } catch (error) {
-      console.error('Failed to load current user:', error);
+    if (user) {
+      loadPortfolios();
     }
-  };
+  }, [user]);
 
   const loadPortfolios = async () => {
     try {
@@ -143,6 +136,50 @@ function App() {
     a.download = `${currentPortfolio.name}-summary.json`;
     a.click();
   };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginComponent />;
+  }
+
+  if (showProfile) {
+    return (
+      <div className={darkMode ? 'dark' : ''}>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+          <header className="bg-white dark:bg-gray-800 shadow-sm border-b">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Product Management v3.0
+                </h1>
+                <Button variant="outline" onClick={() => setShowProfile(false)}>
+                  Back to Dashboard
+                </Button>
+              </div>
+            </div>
+          </header>
+          <main className="py-8">
+            <ProfileComponent />
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -230,9 +267,27 @@ function App() {
                 <Button
                   variant="outline"
                   size="icon"
+                  onClick={() => setShowProfile(true)}
+                  title="Profile"
+                >
+                  <User className="w-4 h-4" />
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={() => setDarkMode(!darkMode)}
                 >
                   {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleLogout}
+                  title="Logout"
+                >
+                  <LogOut className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -330,7 +385,7 @@ function App() {
                   <TabsTrigger value="whiteboard">Whiteboard</TabsTrigger>
                   <TabsTrigger value="integrations">Integrations</TabsTrigger>
                   <TabsTrigger value="settings">Settings</TabsTrigger>
-                  {userRole === 'admin' && (
+                  {user?.role === 'admin' && (
                     <TabsTrigger value="admin">Admin</TabsTrigger>
                   )}
                 </TabsList>
@@ -482,7 +537,7 @@ function App() {
                   <SettingsTab portfolioId={currentPortfolio.id} />
                 </TabsContent>
 
-                {userRole === 'admin' && (
+                {user?.role === 'admin' && (
                   <TabsContent value="admin">
                     <AdminDashboard />
                   </TabsContent>
@@ -493,6 +548,14 @@ function App() {
         </main>
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

@@ -1,21 +1,18 @@
 """
 Role-Based Access Control (RBAC) middleware and helpers
 """
-from fastapi import HTTPException, Depends, Header
+from fastapi import HTTPException, Depends, Request
 from typing import Optional
 from app.models import User, AuditLog
 from app.database import db
+from app.auth import get_current_user_from_token
 from datetime import datetime
 
-async def get_current_user(authorization: Optional[str] = Header(None)) -> User:
+async def get_current_user(request: Request) -> User:
     """
-    Get current user from authorization header
-    For now, returns test user. In production, would verify Firebase token.
+    Get current user from JWT token (cookie or header)
     """
-    test_user = db.get_user_by_id("test-user-1")
-    if not test_user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return test_user
+    return await get_current_user_from_token(request)
 
 async def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """

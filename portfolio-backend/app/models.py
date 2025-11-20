@@ -117,7 +117,8 @@ class User(BaseModel):
     id: str = Field(default_factory=generate_id)
     email: str
     name: str = ""
-    firebase_uid: str
+    hashed_password: str = ""
+    firebase_uid: Optional[str] = None
     portfolios: List[str] = Field(default_factory=list)
     role: str = "user"  # "user", "admin"
     tenant_id: Optional[str] = None
@@ -315,3 +316,15 @@ class UpdateUserRoleRequest(BaseModel):
 
 class UpdateCustomTermsRequest(BaseModel):
     custom_terms: List[CustomTerm]
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class UpdateProfileRequest(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str

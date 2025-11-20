@@ -30,27 +30,39 @@ class InMemoryDB:
     
     def _init_mock_data(self):
         """Initialize with mock data for testing"""
+        import os
+        from app.auth import hash_password
+        
         test_tenant = Tenant(
             id="test-tenant-1",
-            company_name="Test Company",
+            company_name="Demo Company",
             users=[],
             portfolios=[]
         )
         self.tenants[test_tenant.id] = test_tenant
         
-        test_user = User(
-            id="test-user-1",
-            email="test@example.com",
-            name="Test User",
-            firebase_uid="test-firebase-uid",
+        admin_email = os.getenv("ADMIN_EMAIL", "admin@demo.local")
+        admin_password = os.getenv("ADMIN_PASSWORD", "Admin123!")
+        admin_name = os.getenv("ADMIN_NAME", "Admin User")
+        
+        admin_user = User(
+            id="admin-user-1",
+            email=admin_email,
+            name=admin_name,
+            hashed_password=hash_password(admin_password),
+            firebase_uid=None,
             portfolios=[],
             role="admin",
             tenant_id="test-tenant-1"
         )
-        self.users[test_user.id] = test_user
-        self.users[test_user.firebase_uid] = test_user
+        self.users[admin_user.id] = admin_user
+        test_tenant.users.append(admin_user.id)
         
-        test_tenant.users.append(test_user.id)
+        if admin_email == "admin@demo.local":
+            print("⚠️  WARNING: Using default admin credentials!")
+            print(f"   Email: {admin_email}")
+            print(f"   Password: {admin_password}")
+            print("   Please change these credentials in production!")
     
     def get_user_by_firebase_uid(self, firebase_uid: str) -> Optional[User]:
         return self.users.get(firebase_uid)
@@ -58,15 +70,24 @@ class InMemoryDB:
     def get_user_by_id(self, user_id: str) -> Optional[User]:
         return self.users.get(user_id)
     
+    def get_user_by_email(self, email: str) -> Optional[User]:
+        """Get user by email address"""
+        for user in self.users.values():
+            if user.email == email:
+                return user
+        return None
+    
     def create_user(self, user: User) -> User:
         self.users[user.id] = user
-        self.users[user.firebase_uid] = user  # Also index by firebase_uid
+        if user.firebase_uid:
+            self.users[user.firebase_uid] = user  # Also index by firebase_uid
         return user
     
     def update_user(self, user_id: str, user: User) -> Optional[User]:
         if user_id in self.users:
             self.users[user_id] = user
-            self.users[user.firebase_uid] = user
+            if user.firebase_uid:
+                self.users[user.firebase_uid] = user
             return user
         return None
     

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, List
 from datetime import datetime
@@ -14,48 +14,194 @@ from app.models import (
     Integration, CreateIntegrationRequest,
     Tenant, Workspace, AuditLog, CreateTenantRequest, UpdateTenantRequest,
     CreateWorkspaceRequest, UpdateWorkspaceRequest, UpdateUserRoleRequest,
-    UpdateCustomTermsRequest
+    UpdateCustomTermsRequest, LoginRequest, UpdateProfileRequest, ChangePasswordRequest
 )
 from app.database import db
 from app.ai_assistant import (
     prioritize_milestones, generate_roi_scenarios, analyze_feedback_sentiment
 )
+from app.auth import (
+    verify_password, create_access_token, create_refresh_token,
+    set_auth_cookies, clear_auth_cookies, decode_token, hash_password
+)
+from app.rbac import get_current_user
 
 app = FastAPI(title="Portfolio Management API v2.0")
 
-# Disable CORS. Do not remove this for full-stack development.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://product.lukewolter.com",
+        "http://product.lukewolter.com"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-
-async def get_current_user(authorization: Optional[str] = Header(None)) -> User:
-    """
-    Get current user from authorization header
-    For now, returns test user. In production, would verify Firebase token.
-    """
-    test_user = db.get_user_by_id("test-user-1")
-    if not test_user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return test_user
 
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok"}
 
 
+@app.post("/api/auth/login")
+async def login(request: LoginRequest, response: Response):
+    """Login with email and password"""
+    user = db.get_user_by_email(request.email)
+    if not user or not verify_password(request.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    access_token = create_access_token(data={
+        "sub": user.id,
+        "email": user.email,
+        "role": user.role,
+        "tenant_id": user.tenant_id
+    })
+    refresh_token = create_refresh_token(data={"sub": user.id})
+    
+    set_auth_cookies(response, access_token, refresh_token)
+    
+    if user.tenant_id:
+        from app.rbac import log_audit
+        log_audit(user.tenant_id, user.id, "login", "user", user.id, {})
+    
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+        "tenant_id": user.tenant_id
+    }
+
+
+@app.post("/api/auth/logout")
+async def logout(response: Response, request: Request):
+    """Logout and clear authentication cookies"""
+    try:
+        user = await get_current_user(request)
+        if user and user.tenant_id:
+            from app.rbac import log_audit
+            log_audit(user.tenant_id, user.id, "logout", "user", user.id, {})
+    except:
+        pass
+    
+    clear_auth_cookies(response)
+    return {"message": "Logged out successfully"}
+
+
+@app.post("/api/auth/refresh")
+async def refresh_token(request: Request, response: Response):
+    """Refresh access token using refresh token"""
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="No refresh token provided")
+    
+    try:
+        payload = decode_token(refresh_token)
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        
+        user_id = payload.get("sub")
+        user = db.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        new_access_token = create_access_token(data={
+            "sub": user.id,
+            "email": user.email,
+            "role": user.role,
+            "tenant_id": user.tenant_id
+        })
+        new_refresh_token = create_refresh_token(data={"sub": user.id})
+        
+        set_auth_cookies(response, new_access_token, new_refresh_token)
+        
+        return {"message": "Token refreshed successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+
 @app.get("/api/auth/me")
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
+async def get_current_user_info(request: Request):
     """Get current user information"""
-    return current_user
+    user = await get_current_user(request)
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+        "tenant_id": user.tenant_id
+    }
+
+
+@app.patch("/api/users/me")
+async def update_profile(
+    request_data: UpdateProfileRequest,
+    request: Request
+):
+    """Update current user's profile (name and email)"""
+    user = await get_current_user(request)
+    
+    if request_data.name is not None:
+        user.name = request_data.name
+    
+    if request_data.email is not None:
+        existing_user = db.get_user_by_email(request_data.email)
+        if existing_user and existing_user.id != user.id:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        user.email = request_data.email
+    
+    updated_user = db.update_user(user.id, user)
+    
+    if user.tenant_id:
+        from app.rbac import log_audit
+        log_audit(user.tenant_id, user.id, "update", "user", user.id, 
+                  {"name": request_data.name, "email": request_data.email})
+    
+    return {
+        "id": updated_user.id,
+        "email": updated_user.email,
+        "name": updated_user.name,
+        "role": updated_user.role
+    }
+
+
+@app.put("/api/users/me/password")
+async def change_password(
+    request_data: ChangePasswordRequest,
+    request: Request,
+    response: Response
+):
+    """Change current user's password"""
+    user = await get_current_user(request)
+    
+    if not verify_password(request_data.current_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    if len(request_data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    
+    user.hashed_password = hash_password(request_data.new_password)
+    db.update_user(user.id, user)
+    
+    if user.tenant_id:
+        from app.rbac import log_audit
+        log_audit(user.tenant_id, user.id, "update", "user", user.id, 
+                  {"action": "password_change"})
+    
+    clear_auth_cookies(response)
+    
+    return {"message": "Password changed successfully. Please login again."}
 
 
 @app.get("/api/portfolios")
-async def list_portfolios(current_user: User = Depends(get_current_user)) -> List[Portfolio]:
+async def list_portfolios(request: Request) -> List[Portfolio]:
     """List all portfolios for the current user"""
+    current_user = await get_current_user(request)
     portfolios = db.get_portfolios_by_user(current_user.id)
     return portfolios
 
