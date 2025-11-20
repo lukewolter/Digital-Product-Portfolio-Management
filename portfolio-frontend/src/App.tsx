@@ -19,6 +19,8 @@ import CapacityPlanningTab from './components/CapacityPlanningTab';
 import CustomReportingTab from './components/CustomReportingTab';
 import WhiteboardingTab from './components/WhiteboardingTab';
 import IntegrationsTab from './components/IntegrationsTab';
+import SettingsTab from './components/SettingsTab';
+import AdminDashboard from './components/AdminDashboard';
 
 interface Portfolio {
   id: string;
@@ -44,10 +46,24 @@ function App() {
   const [newPortfolioName, setNewPortfolioName] = useState('');
   const [newPortfolioDesc, setNewPortfolioDesc] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [userRole, setUserRole] = useState<string>('user');
 
   useEffect(() => {
     loadPortfolios();
+    loadCurrentUser();
   }, []);
+
+  const loadCurrentUser = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const user = await response.json();
+      setUserRole(user.role || 'user');
+    } catch (error) {
+      console.error('Failed to load current user:', error);
+    }
+  };
 
   const loadPortfolios = async () => {
     try {
@@ -301,7 +317,7 @@ function App() {
               </Dialog>
 
               <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-6 lg:grid-cols-11">
+                <TabsList className={`grid w-full ${userRole === 'admin' ? 'grid-cols-6 lg:grid-cols-13' : 'grid-cols-6 lg:grid-cols-12'}`}>
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="business-case">Business Case</TabsTrigger>
                   <TabsTrigger value="market-research">Market Research</TabsTrigger>
@@ -313,6 +329,10 @@ function App() {
                   <TabsTrigger value="reports">Reports</TabsTrigger>
                   <TabsTrigger value="whiteboard">Whiteboard</TabsTrigger>
                   <TabsTrigger value="integrations">Integrations</TabsTrigger>
+                  <TabsTrigger value="settings">Settings</TabsTrigger>
+                  {userRole === 'admin' && (
+                    <TabsTrigger value="admin">Admin</TabsTrigger>
+                  )}
                 </TabsList>
 
                 <TabsContent value="overview">
@@ -457,6 +477,16 @@ function App() {
                 <TabsContent value="integrations">
                   <IntegrationsTab portfolioId={currentPortfolio.id} />
                 </TabsContent>
+
+                <TabsContent value="settings">
+                  <SettingsTab portfolioId={currentPortfolio.id} />
+                </TabsContent>
+
+                {userRole === 'admin' && (
+                  <TabsContent value="admin">
+                    <AdminDashboard />
+                  </TabsContent>
+                )}
               </Tabs>
             </div>
           )}
