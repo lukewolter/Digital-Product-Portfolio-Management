@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Users, Building, FileText } from 'lucide-react';
+import { Plus, Users, Building, FileText, UserCog } from 'lucide-react';
+import { UserManagementTab } from './UserManagementTab';
 
 interface Tenant {
   id: string;
@@ -49,6 +50,7 @@ export default function AdminDashboard() {
   const [newTenant, setNewTenant] = useState({ company_name: '' });
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [newRole, setNewRole] = useState('user');
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -189,14 +191,18 @@ export default function AdminDashboard() {
       </Card>
 
       <Tabs defaultValue="tenants" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="tenants">
             <Building className="w-4 h-4 mr-2" />
             Tenants
           </TabsTrigger>
+          <TabsTrigger value="user-management">
+            <UserCog className="w-4 h-4 mr-2" />
+            User Management
+          </TabsTrigger>
           <TabsTrigger value="users">
             <Users className="w-4 h-4 mr-2" />
-            Users
+            Users (Legacy)
           </TabsTrigger>
           <TabsTrigger value="audit">
             <FileText className="w-4 h-4 mr-2" />
@@ -273,7 +279,10 @@ export default function AdminDashboard() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => loadUsersForTenant(tenant.id)}
+                        onClick={() => {
+                          setSelectedTenantId(tenant.id);
+                          loadUsersForTenant(tenant.id);
+                        }}
                       >
                         View Users
                       </Button>
@@ -283,6 +292,20 @@ export default function AdminDashboard() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="user-management">
+          {selectedTenantId ? (
+            <UserManagementTab tenantId={selectedTenantId} />
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-8 text-gray-500">
+                  Please select a tenant from the Tenants tab to manage its users
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="users">
