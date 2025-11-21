@@ -69,36 +69,60 @@ export default function AdminDashboard() {
   const loadTenants = async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tenants`, {
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
       });
+      if (!response.ok) {
+        throw new Error(`Failed to load tenants: ${response.status}`);
+      }
       const data = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error('Unexpected tenants response');
+      }
       setTenants(data);
     } catch (error) {
       console.error('Failed to load tenants:', error);
+      setTenants([]);
     }
   };
 
   const loadUsersForTenant = async (tenantId: string) => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tenants/${tenantId}/users`, {
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
       });
+      if (!response.ok) {
+        throw new Error(`Failed to load users: ${response.status}`);
+      }
       const data = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error('Unexpected users response');
+      }
       setUsers(data);
     } catch (error) {
       console.error('Failed to load users:', error);
+      setUsers([]);
     }
   };
 
   const loadAuditLogs = async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/audit-logs`, {
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
       });
+      if (!response.ok) {
+        throw new Error(`Failed to load audit logs: ${response.status}`);
+      }
       const data = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error('Unexpected audit logs response');
+      }
       setAuditLogs(data);
     } catch (error) {
       console.error('Failed to load audit logs:', error);
+      setAuditLogs([]);
     }
   };
 
@@ -108,15 +132,21 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tenants`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newTenant)
       });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to create tenant: ${response.status} ${errorText}`);
+      }
       const tenant = await response.json();
       setTenants([...tenants, tenant]);
       setShowAddTenant(false);
       setNewTenant({ company_name: '' });
     } catch (error) {
       console.error('Failed to create tenant:', error);
+      alert('Failed to create tenant. Please try again.');
     }
   };
 
@@ -126,14 +156,20 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/${selectedUser.id}/role`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole })
       });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to update user role: ${response.status} ${errorText}`);
+      }
       const updatedUser = await response.json();
       setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
       setSelectedUser(null);
     } catch (error) {
       console.error('Failed to update user role:', error);
+      alert('Failed to update user role. Please try again.');
     }
   };
 
