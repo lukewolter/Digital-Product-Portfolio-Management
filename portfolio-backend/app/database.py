@@ -286,8 +286,33 @@ class InMemoryDB:
             return True
         return False
     
-    def get_users_by_tenant(self, tenant_id: str) -> List[User]:
-        return [u for u in self.users.values() if u.tenant_id == tenant_id]
+    def get_users_by_tenant(self, tenant_id: str, include_inactive: bool = False) -> List[User]:
+        """Get users by tenant, optionally including inactive users"""
+        users = [u for u in self.users.values() if u.tenant_id == tenant_id]
+        if not include_inactive:
+            users = [u for u in users if u.status == "active"]
+        return users
+    
+    def get_user_by_email_and_tenant(self, email: str, tenant_id: str) -> Optional[User]:
+        """Get user by email within a specific tenant"""
+        for user in self.users.values():
+            if user.email == email and user.tenant_id == tenant_id:
+                return user
+        return None
+    
+    def delete_user(self, user_id: str) -> bool:
+        """Hard delete user (for cleanup only, use soft delete in production)"""
+        if user_id in self.users:
+            del self.users[user_id]
+            return True
+        return False
+    
+    def count_active_admins_in_tenant(self, tenant_id: str) -> int:
+        """Count active admin users in a tenant"""
+        return len([
+            u for u in self.users.values() 
+            if u.tenant_id == tenant_id and u.role == "admin" and u.status == "active"
+        ])
     
     def get_portfolios_by_tenant(self, tenant_id: str) -> List[Portfolio]:
         return [p for p in self.portfolios.values() if p.tenant_id == tenant_id]

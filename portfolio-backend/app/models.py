@@ -113,6 +113,10 @@ class Portfolio(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+class ResetToken(BaseModel):
+    token: str
+    expiry: datetime
+
 class User(BaseModel):
     id: str = Field(default_factory=generate_id)
     email: str
@@ -122,6 +126,13 @@ class User(BaseModel):
     portfolios: List[str] = Field(default_factory=list)
     role: str = "user"  # "user", "admin"
     tenant_id: Optional[str] = None
+    status: str = "active"  # "active", "inactive"
+    last_login: Optional[datetime] = None
+    reset_token: Optional[ResetToken] = None
+    token_version: int = 0
+    require_password_change: bool = False
+    deactivated_at: Optional[datetime] = None
+    deactivated_by: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Notification(BaseModel):
@@ -328,3 +339,24 @@ class UpdateProfileRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
+
+class CreateUserRequest(BaseModel):
+    email: str
+    password: Optional[str] = None  # If None, auto-generate
+    role: str = "user"  # "user", "admin"
+    name: str = ""
+
+class UpdateUserRequest(BaseModel):
+    email: Optional[str] = None
+    role: Optional[str] = None
+    name: Optional[str] = None
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+
+class ConfirmResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+class AdminResetPasswordRequest(BaseModel):
+    pass  # No body needed, just trigger the reset

@@ -41,6 +41,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire, "type": "access"})
+    if "token_version" not in to_encode:
+        to_encode["token_version"] = 0
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -95,6 +97,13 @@ async def get_current_user_from_token(request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
+    if user.status != "active":
+        raise HTTPException(status_code=401, detail="User account is inactive")
+    
+    token_version = payload.get("token_version", 0)
+    if token_version != user.token_version:
+        raise HTTPException(status_code=401, detail="Session has been revoked")
+    
     return user
 
 async def get_current_user_optional(request: Request):
@@ -130,3 +139,15 @@ def clear_auth_cookies(response: Response):
     """Clear authentication cookies."""
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/")
+
+def generate_temp_password(length: int = 16) -> str:
+    """Generate a secure temporary password."""
+    import secrets
+    import string
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+def generate_reset_token() -> str:
+    """Generate a secure reset token."""
+    import secrets
+    return secrets.token_urlsafe(32)

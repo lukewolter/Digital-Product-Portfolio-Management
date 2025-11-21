@@ -53,11 +53,18 @@ async def login(request: LoginRequest, response: Response):
     if not user or not verify_password(request.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
+    if user.status != "active":
+        raise HTTPException(status_code=401, detail="User account is inactive")
+    
+    user.last_login = datetime.utcnow()
+    db.update_user(user.id, user)
+    
     access_token = create_access_token(data={
         "sub": user.id,
         "email": user.email,
         "role": user.role,
-        "tenant_id": user.tenant_id
+        "tenant_id": user.tenant_id,
+        "token_version": user.token_version
     })
     refresh_token = create_refresh_token(data={"sub": user.id})
     
@@ -72,7 +79,8 @@ async def login(request: LoginRequest, response: Response):
         "email": user.email,
         "name": user.name,
         "role": user.role,
-        "tenant_id": user.tenant_id
+        "tenant_id": user.tenant_id,
+        "require_password_change": user.require_password_change
     }
 
 
@@ -2086,3 +2094,8 @@ async def list_tenant_portfolios(
     
     portfolios = db.get_portfolios_by_tenant(tenant_id)
     return portfolios
+
+
+# User Management Endpoints (Story 46)
+from app.user_management_endpoints import register_user_management_endpoints
+register_user_management_endpoints(app)
