@@ -180,7 +180,7 @@ function AppContent() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
               <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
                 <div>Version 3.0.0</div>
-                <div>© 2024 lukewolter.com</div>
+                <div>© 2025 lukewolter.com</div>
               </div>
             </div>
           </footer>
@@ -558,7 +558,7 @@ function AppContent() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
               <div>Version 3.0.0</div>
-              <div>© 2024 lukewolter.com</div>
+              <div>© 2025 lukewolter.com</div>
             </div>
           </div>
         </footer>
