@@ -292,8 +292,8 @@ class Workspace(BaseModel):
 
 class CreateTenantRequest(BaseModel):
     company_name: str
-    admin_email: str
-    admin_name: str = ""
+    admin_email: Optional[str] = None
+    admin_name: Optional[str] = None
 
 class UpdateTenantRequest(BaseModel):
     company_name: Optional[str] = None

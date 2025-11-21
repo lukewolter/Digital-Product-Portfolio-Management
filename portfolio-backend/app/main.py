@@ -1797,17 +1797,18 @@ async def create_tenant(
     )
     created_tenant = db.create_tenant(tenant)
     
-    admin_user = User(
-        email=request.admin_email,
-        name=request.admin_name,
-        firebase_uid=f"firebase-{request.admin_email}",
-        role="admin",
-        tenant_id=created_tenant.id
-    )
-    created_user = db.create_user(admin_user)
-    
-    created_tenant.users.append(created_user.id)
-    db.update_tenant(created_tenant.id, created_tenant)
+    if request.admin_email:
+        admin_user = User(
+            email=request.admin_email,
+            name=request.admin_name or "",
+            firebase_uid=f"firebase-{request.admin_email}",
+            role="admin",
+            tenant_id=created_tenant.id
+        )
+        created_user = db.create_user(admin_user)
+        
+        created_tenant.users.append(created_user.id)
+        db.update_tenant(created_tenant.id, created_tenant)
     
     log_audit(created_tenant.id, current_user.id, "create", "tenant", created_tenant.id, 
               {"company_name": request.company_name})
