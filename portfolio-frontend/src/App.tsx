@@ -24,6 +24,7 @@ import WhiteboardingTab from './components/WhiteboardingTab';
 import IntegrationsTab from './components/IntegrationsTab';
 import SettingsTab from './components/SettingsTab';
 import AdminDashboard from './components/AdminDashboard';
+import { DealArtifactsTab } from './components/DealArtifactsTab';
 
 interface Portfolio {
   id: string;
