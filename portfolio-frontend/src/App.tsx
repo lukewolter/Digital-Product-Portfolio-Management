@@ -11,7 +11,7 @@ import { Plus, Save, Download, Moon, Sun, Trash2, LogOut, User } from 'lucide-re
 import { apiClient } from './lib/api';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginComponent from './components/LoginComponent';
-import ProfileComponent from './components/ProfileComponent';
+import SettingsPage from './components/SettingsPage';
 import { MarketResearchTab } from './components/MarketResearchTab';
 import { RoadmapTab } from './components/RoadmapTab';
 import { InvestmentTab } from './components/InvestmentTab';
@@ -22,8 +22,6 @@ import CapacityPlanningTab from './components/CapacityPlanningTab';
 import CustomReportingTab from './components/CustomReportingTab';
 import WhiteboardingTab from './components/WhiteboardingTab';
 import IntegrationsTab from './components/IntegrationsTab';
-import SettingsTab from './components/SettingsTab';
-import AdminDashboard from './components/AdminDashboard';
 import { DealArtifactsTab } from './components/DealArtifactsTab';
 
 interface Portfolio {
@@ -51,7 +49,7 @@ function AppContent() {
   const [newPortfolioName, setNewPortfolioName] = useState('');
   const [newPortfolioDesc, setNewPortfolioDesc] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -276,8 +274,8 @@ function AppContent() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => setShowProfile(true)}
-                  title="Profile"
+                  onClick={() => setShowSettings(true)}
+                  title="Settings"
                 >
                   <User className="w-4 h-4" />
                 </Button>
@@ -394,10 +392,6 @@ function AppContent() {
                   <TabsTrigger value="whiteboard">Whiteboard</TabsTrigger>
                   <TabsTrigger value="integrations">Integrations</TabsTrigger>
                   <TabsTrigger value="artifacts">Deal Artifacts</TabsTrigger>
-                  <TabsTrigger value="settings">Settings</TabsTrigger>
-                  {user?.role === 'admin' && (
-                    <TabsTrigger value="admin">Admin</TabsTrigger>
-                  )}
                 </TabsList>
 
                 <TabsContent value="overview">
@@ -546,16 +540,6 @@ function AppContent() {
                 <TabsContent value="artifacts">
                   <DealArtifactsTab portfolioId={currentPortfolio.id} />
                 </TabsContent>
-
-                <TabsContent value="settings">
-                  <SettingsTab portfolioId={currentPortfolio.id} />
-                </TabsContent>
-
-                {user?.role === 'admin' && (
-                  <TabsContent value="admin">
-                    <AdminDashboard />
-                  </TabsContent>
-                )}
               </Tabs>
             </div>
           )}
