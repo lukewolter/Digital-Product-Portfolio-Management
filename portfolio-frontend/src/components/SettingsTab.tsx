@@ -27,7 +27,7 @@ interface CustomTerm {
 }
 
 interface SettingsTabProps {
-  portfolioId: string;
+  portfolioId?: string;
 }
 
 export default function SettingsTab({ portfolioId }: SettingsTabProps) {

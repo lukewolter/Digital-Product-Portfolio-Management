@@ -156,37 +156,6 @@ function AppContent() {
     return <LoginComponent />;
   }
 
-  if (showProfile) {
-    return (
-      <div className={darkMode ? 'dark' : ''}>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          <header className="bg-white dark:bg-gray-800 shadow-sm border-b">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-              <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Product Portfolio Manager
-                </h1>
-                <Button variant="outline" onClick={() => setShowProfile(false)}>
-                  Back to Dashboard
-                </Button>
-              </div>
-            </div>
-          </header>
-          <main className="py-8">
-            <ProfileComponent />
-          </main>
-          <footer className="bg-white dark:bg-gray-800 border-t mt-8">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-              <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-                <div>Version 3.0.0</div>
-                <div>© 2025 lukewolter.com</div>
-              </div>
-            </div>
-          </footer>
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
@@ -197,14 +166,16 @@ function AppContent() {
   }
 
   return (
-    <div className={darkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <header className="bg-white dark:bg-gray-800 shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Product Portfolio Manager
-              </h1>
+    <>
+      {showSettings && <SettingsPage onClose={() => setShowSettings(false)} />}
+      <div className={darkMode ? 'dark' : ''}>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+          <header className="bg-white dark:bg-gray-800 shadow-sm border-b">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Product Portfolio Manager
+                </h1>
               
               <div className="flex items-center gap-4">
                 {portfolios.length > 0 && (
@@ -552,8 +523,9 @@ function AppContent() {
             </div>
           </div>
         </footer>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
