@@ -26,7 +26,7 @@ from app.auth import (
 )
 from app.rbac import get_current_user
 
-app = FastAPI(title="Portfolio Management API v2.0")
+app = FastAPI(title="Product Portfolio Management API", version="5.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -2098,4 +2098,7 @@ async def list_tenant_portfolios(
 
 # User Management Endpoints (Story 46)
 from app.user_management_endpoints import register_user_management_endpoints
+from app.artifact_endpoints import register_artifact_endpoints
+
 register_user_management_endpoints(app)
+register_artifact_endpoints(app)
