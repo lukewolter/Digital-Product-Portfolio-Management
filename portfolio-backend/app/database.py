@@ -6,7 +6,8 @@ from typing import Dict, List, Optional
 from app.models import (
     User, Portfolio, Notification, 
     Idea, CapacityResource, CustomReport, Whiteboard, Integration,
-    Tenant, AuditLog, Workspace
+    Tenant, AuditLog, Workspace,
+    ContractTemplate, OperatingModel, SLA, CLMIntegration, ComplianceIssue, ArtifactAudit
 )
 from datetime import datetime
 
@@ -25,6 +26,13 @@ class InMemoryDB:
         self.tenants: Dict[str, Tenant] = {}
         self.audit_logs: Dict[str, AuditLog] = {}
         self.workspaces: Dict[str, Workspace] = {}
+        
+        self.templates: Dict[str, ContractTemplate] = {}
+        self.operating_models: Dict[str, OperatingModel] = {}
+        self.slas: Dict[str, SLA] = {}
+        self.clm_integrations: Dict[str, CLMIntegration] = {}
+        self.compliance_issues: Dict[str, ComplianceIssue] = {}
+        self.artifact_audits: Dict[str, ArtifactAudit] = {}
         
         self._init_mock_data()
     
@@ -348,5 +356,149 @@ class InMemoryDB:
             del self.workspaces[workspace_id]
             return True
         return False
+    
+    def get_template(self, template_id: str) -> Optional[ContractTemplate]:
+        return self.templates.get(template_id)
+    
+    def get_templates_by_tenant(self, tenant_id: str, template_type: Optional[str] = None, status: Optional[str] = None) -> List[ContractTemplate]:
+        templates = [t for t in self.templates.values() if t.tenant_id == tenant_id]
+        if template_type:
+            templates = [t for t in templates if t.type == template_type]
+        if status:
+            templates = [t for t in templates if t.status == status]
+        return templates
+    
+    def create_template(self, template: ContractTemplate) -> ContractTemplate:
+        self.templates[template.id] = template
+        return template
+    
+    def update_template(self, template_id: str, template: ContractTemplate) -> Optional[ContractTemplate]:
+        if template_id in self.templates:
+            template.updated_at = datetime.utcnow()
+            self.templates[template_id] = template
+            return template
+        return None
+    
+    def delete_template(self, template_id: str) -> bool:
+        if template_id in self.templates:
+            del self.templates[template_id]
+            return True
+        return False
+    
+    def get_operating_model(self, model_id: str) -> Optional[OperatingModel]:
+        return self.operating_models.get(model_id)
+    
+    def get_operating_models_by_portfolio(self, portfolio_id: str) -> List[OperatingModel]:
+        return [m for m in self.operating_models.values() if m.portfolio_id == portfolio_id]
+    
+    def get_operating_models_by_tenant(self, tenant_id: str) -> List[OperatingModel]:
+        return [m for m in self.operating_models.values() if m.tenant_id == tenant_id]
+    
+    def create_operating_model(self, model: OperatingModel) -> OperatingModel:
+        self.operating_models[model.id] = model
+        return model
+    
+    def update_operating_model(self, model_id: str, model: OperatingModel) -> Optional[OperatingModel]:
+        if model_id in self.operating_models:
+            model.updated_at = datetime.utcnow()
+            self.operating_models[model_id] = model
+            return model
+        return None
+    
+    def delete_operating_model(self, model_id: str) -> bool:
+        if model_id in self.operating_models:
+            del self.operating_models[model_id]
+            return True
+        return False
+    
+    def get_sla(self, sla_id: str) -> Optional[SLA]:
+        return self.slas.get(sla_id)
+    
+    def get_slas_by_tenant(self, tenant_id: str, status: Optional[str] = None) -> List[SLA]:
+        slas = [s for s in self.slas.values() if s.tenant_id == tenant_id]
+        if status:
+            slas = [s for s in slas if s.status == status]
+        return slas
+    
+    def get_slas_by_portfolio(self, portfolio_id: str) -> List[SLA]:
+        return [s for s in self.slas.values() if s.portfolio_id == portfolio_id]
+    
+    def create_sla(self, sla: SLA) -> SLA:
+        self.slas[sla.id] = sla
+        return sla
+    
+    def update_sla(self, sla_id: str, sla: SLA) -> Optional[SLA]:
+        if sla_id in self.slas:
+            sla.updated_at = datetime.utcnow()
+            self.slas[sla_id] = sla
+            return sla
+        return None
+    
+    def delete_sla(self, sla_id: str) -> bool:
+        if sla_id in self.slas:
+            del self.slas[sla_id]
+            return True
+        return False
+    
+    def get_clm_integration(self, integration_id: str) -> Optional[CLMIntegration]:
+        return self.clm_integrations.get(integration_id)
+    
+    def get_clm_integrations_by_tenant(self, tenant_id: str, tool: Optional[str] = None) -> List[CLMIntegration]:
+        integrations = [i for i in self.clm_integrations.values() if i.tenant_id == tenant_id]
+        if tool:
+            integrations = [i for i in integrations if i.tool == tool]
+        return integrations
+    
+    def create_clm_integration(self, integration: CLMIntegration) -> CLMIntegration:
+        self.clm_integrations[integration.id] = integration
+        return integration
+    
+    def update_clm_integration(self, integration_id: str, integration: CLMIntegration) -> Optional[CLMIntegration]:
+        if integration_id in self.clm_integrations:
+            integration.updated_at = datetime.utcnow()
+            self.clm_integrations[integration_id] = integration
+            return integration
+        return None
+    
+    def delete_clm_integration(self, integration_id: str) -> bool:
+        if integration_id in self.clm_integrations:
+            del self.clm_integrations[integration_id]
+            return True
+        return False
+    
+    def get_compliance_issue(self, issue_id: str) -> Optional[ComplianceIssue]:
+        return self.compliance_issues.get(issue_id)
+    
+    def get_compliance_issues_by_artifact(self, artifact_type: str, artifact_id: str, resolved: Optional[bool] = None) -> List[ComplianceIssue]:
+        issues = [i for i in self.compliance_issues.values() 
+                 if i.artifact_type == artifact_type and i.artifact_id == artifact_id]
+        if resolved is not None:
+            issues = [i for i in issues if i.resolved == resolved]
+        return issues
+    
+    def create_compliance_issue(self, issue: ComplianceIssue) -> ComplianceIssue:
+        self.compliance_issues[issue.id] = issue
+        return issue
+    
+    def update_compliance_issue(self, issue_id: str, issue: ComplianceIssue) -> Optional[ComplianceIssue]:
+        if issue_id in self.compliance_issues:
+            self.compliance_issues[issue_id] = issue
+            return issue
+        return None
+    
+    def create_artifact_audit(self, audit: ArtifactAudit) -> ArtifactAudit:
+        self.artifact_audits[audit.id] = audit
+        return audit
+    
+    def get_artifact_audits_by_tenant(self, tenant_id: str, artifact_type: Optional[str] = None) -> List[ArtifactAudit]:
+        audits = [a for a in self.artifact_audits.values() if a.tenant_id == tenant_id]
+        if artifact_type:
+            audits = [a for a in audits if a.artifact_type == artifact_type]
+        return sorted(audits, key=lambda x: x.timestamp, reverse=True)
+    
+    def get_artifact_audits_by_artifact(self, artifact_type: str, artifact_id: str) -> List[ArtifactAudit]:
+        audits = [a for a in self.artifact_audits.values() 
+                 if a.artifact_type == artifact_type and a.artifact_id == artifact_id]
+        return sorted(audits, key=lambda x: x.timestamp, reverse=True)
 
 db = InMemoryDB()

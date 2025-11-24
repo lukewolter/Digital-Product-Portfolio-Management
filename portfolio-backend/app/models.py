@@ -360,3 +360,170 @@ class ConfirmResetPasswordRequest(BaseModel):
 
 class AdminResetPasswordRequest(BaseModel):
     pass  # No body needed, just trigger the reset
+
+
+class Clause(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    text: str
+    approved: bool = False
+    category: str = ""  # e.g., "liability", "termination", "payment"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class TemplateVersion(BaseModel):
+    version: int
+    content: Dict[str, Any]
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    changed_by: str
+
+class ContractTemplate(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    tenant_id: str
+    name: str
+    type: str  # "NDA", "MSA", "SOW", "SLA", "Custom"
+    content: Dict[str, Any] = Field(default_factory=dict)  # Rich text content with placeholders
+    clauses: List[Clause] = Field(default_factory=list)
+    versions: List[TemplateVersion] = Field(default_factory=list)
+    status: str = "draft"  # "draft", "approved", "archived"
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class OperatingModelSection(BaseModel):
+    key: str  # e.g., "key_partners", "value_propositions"
+    content: str = ""
+    ai_suggested: bool = False
+
+class OperatingModel(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    portfolio_id: str
+    tenant_id: str
+    name: str
+    template_type: str = "business_model_canvas"  # "business_model_canvas", "lean_canvas", "custom"
+    sections: List[OperatingModelSection] = Field(default_factory=list)
+    linked_roadmap_ids: List[str] = Field(default_factory=list)
+    linked_investment_id: Optional[str] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class SLAMetric(BaseModel):
+    name: str  # e.g., "uptime", "response_time", "resolution_time"
+    target: float  # Target value (e.g., 99.9 for uptime percentage)
+    current: float = 0.0  # Current measured value
+    unit: str = ""  # e.g., "%", "hours", "minutes"
+    breach_threshold: float = 0.0  # When to trigger alert
+
+class SLA(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    tenant_id: str
+    portfolio_id: Optional[str] = None
+    name: str
+    description: str = ""
+    metrics: List[SLAMetric] = Field(default_factory=list)
+    status: str = "draft"  # "draft", "active", "breached", "expired"
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    renewal_reminder_days: int = 30
+    linked_template_id: Optional[str] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    last_checked: Optional[datetime] = None
+
+class CLMSync(BaseModel):
+    tool: str  # "ironclad", "docusign", "custom"
+    external_id: str
+    last_sync: datetime = Field(default_factory=datetime.utcnow)
+    sync_status: str = "success"  # "success", "failed", "pending"
+    error_message: Optional[str] = None
+
+class CLMIntegration(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    tenant_id: str
+    tool: str  # "ironclad", "docusign"
+    config: Dict[str, Any] = Field(default_factory=dict)  # OAuth tokens, API keys, etc.
+    enabled: bool = True
+    test_mode: bool = False
+    field_mappings: Dict[str, str] = Field(default_factory=dict)  # Map internal fields to CLM fields
+    webhook_url: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class ComplianceIssue(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    severity: str = "low"  # "low", "medium", "high", "critical"
+    description: str
+    artifact_type: str  # "template", "sla", "operating_model"
+    artifact_id: str
+    flagged_by: str = "ai"  # "ai", "manual"
+    resolved: bool = False
+    resolved_by: Optional[str] = None
+    resolved_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class ArtifactAudit(BaseModel):
+    id: str = Field(default_factory=generate_id)
+    tenant_id: str
+    artifact_type: str  # "template", "sla", "operating_model"
+    artifact_id: str
+    action: str  # "created", "updated", "approved", "archived", "synced"
+    user_id: str
+    changes: Dict[str, Any] = Field(default_factory=dict)
+    compliance_issues: List[ComplianceIssue] = Field(default_factory=list)
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CreateTemplateRequest(BaseModel):
+    name: str
+    type: str
+    content: Dict[str, Any] = Field(default_factory=dict)
+    clauses: List[Clause] = Field(default_factory=list)
+
+class UpdateTemplateRequest(BaseModel):
+    name: Optional[str] = None
+    content: Optional[Dict[str, Any]] = None
+    clauses: Optional[List[Clause]] = None
+    status: Optional[str] = None
+
+class CreateOperatingModelRequest(BaseModel):
+    portfolio_id: str
+    name: str
+    template_type: str = "business_model_canvas"
+    sections: List[OperatingModelSection] = Field(default_factory=list)
+
+class UpdateOperatingModelRequest(BaseModel):
+    name: Optional[str] = None
+    sections: Optional[List[OperatingModelSection]] = None
+    linked_roadmap_ids: Optional[List[str]] = None
+
+class CreateSLARequest(BaseModel):
+    portfolio_id: Optional[str] = None
+    name: str
+    description: str = ""
+    metrics: List[SLAMetric] = Field(default_factory=list)
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+
+class UpdateSLARequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    metrics: Optional[List[SLAMetric]] = None
+    status: Optional[str] = None
+
+class CreateCLMIntegrationRequest(BaseModel):
+    tool: str
+    config: Dict[str, Any]
+    field_mappings: Dict[str, str] = Field(default_factory=dict)
+    test_mode: bool = False
+
+class SyncArtifactRequest(BaseModel):
+    artifact_type: str  # "template", "sla"
+    artifact_id: str
+    action: str = "push"  # "push", "pull"
+
+class AIComplianceCheckRequest(BaseModel):
+    artifact_type: str
+    artifact_id: str
+    standards: List[str] = Field(default_factory=list)  # List of compliance standards to check against
