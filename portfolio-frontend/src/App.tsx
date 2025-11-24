@@ -393,6 +393,7 @@ function AppContent() {
                   <TabsTrigger value="reports">Reports</TabsTrigger>
                   <TabsTrigger value="whiteboard">Whiteboard</TabsTrigger>
                   <TabsTrigger value="integrations">Integrations</TabsTrigger>
+                  <TabsTrigger value="artifacts">Deal Artifacts</TabsTrigger>
                   <TabsTrigger value="settings">Settings</TabsTrigger>
                   {user?.role === 'admin' && (
                     <TabsTrigger value="admin">Admin</TabsTrigger>
@@ -540,6 +541,10 @@ function AppContent() {
 
                 <TabsContent value="integrations">
                   <IntegrationsTab portfolioId={currentPortfolio.id} />
+                </TabsContent>
+
+                <TabsContent value="artifacts">
+                  <DealArtifactsTab portfolioId={currentPortfolio.id} />
                 </TabsContent>
 
                 <TabsContent value="settings">
